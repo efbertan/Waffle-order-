@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kasa Girişi - Yetkili Paneli</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body {
+      background: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+    .card {
+      background: #1e293b;
+      padding: 32px 24px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      border: 1px solid #334155;
+    }
+    .icon { font-size: 40px; margin-bottom: 12px; }
+    h2 { color: #f8fafc; margin: 0 0 8px 0; font-size: 22px; }
+    p { color: #94a3b8; font-size: 14px; margin: 0 0 24px 0; }
+    input[type="password"] {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      border: 2px solid #475569;
+      background: #0f172a;
+      color: #fff;
+      font-size: 24px;
+      letter-spacing: 8px;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="password"]:focus { border-color: #f59e0b; }
+    button {
+      width: 100%;
+      margin-top: 16px;
+      padding: 14px;
+      background: #f59e0b;
+      color: #0f172a;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #d97706; }
+    .error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      border: 1px solid #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🔒</div>
+    <h2>Kasa & Mutfak Girişi</h2>
+    <p>Devam etmek için yetkili PIN kodunu girin</p>
+
+    {% if hata %}
+    <div class="error">{{ hata }}</div>
+    {% endif %}
+
+    <form method="POST" action="/kasa-giris">
+      <input type="password" name="pin" maxlength="6" placeholder="••••" autofocus required>
+      <button type="submit">Giriş Yap</button>
+    </form>
+  </div>
+</body>
+</html>
