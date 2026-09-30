@@ -1,1 +1,1 @@
-web: gunicorn -k gevent -w 1 app:app
+web: gunicorn -w 1 -k gthread --threads 10 app:app
