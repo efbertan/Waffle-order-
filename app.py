@@ -1,11 +1,12 @@
 import os
 import json
 from datetime import datetime
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session, redirect
 from flask_socketio import SocketIO, emit
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
+KASA_PIN = "3434"  # İstediğin 4 veya 6 haneli PIN'i belirleyebilirsin
 app.config['SECRET_KEY'] = 'waffle_gizli_anahtar_123'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///waffle.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -87,24 +88,30 @@ def ayar_kaydet(anahtar, veri):
         db.session.add(ayar)
     db.session.commit()
 
-# --- ROUTES ---
-@app.route('/')
-def index():
-    masa_no = request.args.get('masa', '1')
-    fiyatlar = ayar_getir('fiyatlar')
-    gunluk_durum = ayar_getir('gunluk_durum')
+# --@app.route('/kasa-giris', methods=['GET', 'POST'])
+def kasa_giris():
+    hata = None
+    if request.method == 'POST':
+        girilen_pin = request.form.get('pin', '').strip()
+        if girilen_pin == KASA_PIN:
+            session['kasa_yetkili'] = True
+            return redirect(url_for('kasa'))
+        else:
+            hata = "Hatalı PIN kodu! Lütfen tekrar deneyin."
+            
+    return render_template('kasa_giris.html', hata=hata)
 
-    aktif_db_siparisler = Siparis.query.filter_by(masa=str(masa_no)).order_by(Siparis.id.desc()).all()
-    aktif_siparisler = [s.to_dict() for s in aktif_db_siparisler]
-
-    return render_template('menu.html',
-                           masa_no=masa_no,
-                           aktif_siparisler=aktif_siparisler,
-                           fiyatlar=fiyatlar,
-                           gun_acik=gunluk_durum.get('gun_acik', True))
+@app.route('/kasa-cikis')
+def kasa_cikis():
+    session.pop('kasa_yetkili', None)
+    return redirect(url_for('kasa_giris'))
 
 @app.route('/kasa')
 def kasa():
+    # Yetki kontrolü: Oturum açılmamışsa PIN ekranına fırlat
+    if not session.get('kasa_yetkili'):
+        return redirect(url_for('kasa_giris'))
+
     fiyatlar = ayar_getir('fiyatlar')
     gunluk_durum = ayar_getir('gunluk_durum')
     
