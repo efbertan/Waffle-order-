@@ -360,8 +360,14 @@
       }
     }
 
-    // GÜN DURUMU GÜNCELLEME
+   // GÜN DURUMU GÜNCELLEME
     async function gunDurumGuncelle(acikMi) {
+      if (!acikMi) {
+        if (!confirm("Günü kapatmak istediğinize emin misiniz?")) return;
+      } else {
+        if (!confirm("Yeni gün başlatılsın mı? Bugünkü hasılat ve sipariş listesi sıfırdan başlayacak.")) return;
+      }
+
       try {
         const res = await fetch('/api/gun-durum', {
           method: 'POST',
@@ -370,7 +376,8 @@
         });
         const data = await res.json();
         if (data.success) {
-          ekranDurumunuAyarla(data.durum.acik);
+          // Sayfayı yenileyerek yeni günün sıfırlanmış hasılatını ve temiz ekranını getir
+          window.location.reload();
         }
       } catch (err) {
         alert("Bağlantı hatası: " + err);
