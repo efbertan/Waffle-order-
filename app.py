@@ -1,9 +1,9 @@
 import os
 import json
 from datetime import datetime
-from flask import Flask, render_template, request, session, redirect
 from flask_socketio import SocketIO, emit
 from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, render_template, request, session, redirect, url_for
 
 app = Flask(__name__)
 KASA_PIN = "3434"  # İstediğin 4 veya 6 haneli PIN'i belirleyebilirsin
