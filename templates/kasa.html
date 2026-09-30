@@ -3,239 +3,206 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kasa & POS Yönetim Paneli</title>
+  <title>Waffle POS - Kasa & Mutfak Paneli</title>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #0b1329; margin: 0; padding: 24px; color: #f8fafc; }
+    body { background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    h1 { margin: 0; font-size: 24px; color: #f97316; }
+    
+    .stats-container { display: flex; gap: 16px; flex-wrap: wrap; }
+    .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 12px 18px; min-width: 140px; }
+    .stat-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; }
+    .stat-val { font-size: 22px; font-weight: bold; color: #38bdf8; margin-top: 4px; }
+    
+    .actions { display: flex; gap: 10px; }
+    .btn { border: none; border-radius: 8px; padding: 10px 16px; font-weight: bold; cursor: pointer; font-size: 14px; }
+    .btn-red { background: #ef4444; color: white; }
+    .btn-green { background: #22c55e; color: white; }
+    .btn-blue { background: #3b82f6; color: white; }
 
-    .dashboard-grid { display: grid; grid-template-columns: 320px 1fr; gap: 24px; }
+    .grid-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .grid-layout { grid-template-columns: 1fr; } }
 
-    /* Sol Panel */
-    .sidebar { background: #16203a; border-radius: 14px; padding: 20px; border: 1px solid #1e293b; height: fit-content; }
-    .kpi-card { background: #0f172a; border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155; }
-    .kpi-title { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-    .kpi-value { font-size: 26px; font-weight: bold; color: #38bdf8; margin-top: 4px; }
-    .kpi-value.green { color: #4ade80; }
+    .section-box { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 16px; }
+    .section-box h2 { margin-top: 0; font-size: 18px; border-bottom: 1px solid #334155; padding-bottom: 10px; display: flex; justify-content: space-between; }
 
-    /* Fiyat Düzenleme */
-    .price-input-group { margin-bottom: 12px; }
-    .price-input-group label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
-    .price-input-group input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 8px; color: white; font-weight: bold; }
+    .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+    .order-card { background: #0f172a; border: 2px solid #f97316; border-radius: 12px; padding: 14px; position: relative; }
+    .order-card.done { border-color: #22c55e; opacity: 0.6; }
+    .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 15px; }
+    .table-tag { background: #ea580c; color: white; padding: 3px 8px; border-radius: 6px; font-weight: bold; }
+    .order-time { font-size: 12px; color: #94a3b8; }
+    .order-body { font-size: 13px; line-height: 1.5; color: #cbd5e1; }
+    .order-body strong { color: #fff; }
+    .order-note { background: #334155; padding: 6px 8px; border-radius: 6px; margin-top: 8px; font-style: italic; color: #fde047; font-size: 12px; }
+    
+    .done-btn { width: 100%; margin-top: 12px; padding: 8px; background: #22c55e; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .done-btn:hover { background: #16a34a; }
 
-    .btn-save { width: 100%; background: #3b82f6; color: white; border: none; border-radius: 6px; padding: 10px; font-weight: bold; cursor: pointer; margin-top: 8px; }
-    .btn-save:hover { background: #2563eb; }
-
-    .btn-end-day { width: 100%; background: #ef4444; color: white; border: none; border-radius: 6px; padding: 12px; font-weight: bold; cursor: pointer; margin-top: 20px; }
-    .btn-end-day:hover { background: #dc2626; }
-    .btn-start-day { width: 100%; background: #10b981; color: white; border: none; border-radius: 6px; padding: 12px; font-weight: bold; cursor: pointer; margin-top: 20px; }
-
-    /* Sağ Panel (Siparişler) */
-    .orders-area { display: flex; flex-direction: column; }
-    .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 20px; }
-    .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-    .order-card { background: #16203a; border-radius: 12px; padding: 16px; border: 1px solid #334155; position: relative; }
-    .order-card.completed { opacity: 0.35; border-color: #22c55e; }
-    .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 10px; }
-    .table-badge { background: #f59e0b; color: #000; font-weight: bold; padding: 4px 10px; border-radius: 6px; font-size: 14px; }
-    .price-tag { font-size: 16px; font-weight: bold; color: #4ade80; }
-    .detail-item { font-size: 13px; margin-bottom: 4px; line-height: 1.4; }
-    .detail-item strong { color: #94a3b8; }
-    .note-box { background: #0f172a; border-left: 3px solid #38bdf8; padding: 6px; margin-top: 8px; border-radius: 4px; font-size: 12px; }
-
-    .action-btn { width: 100%; margin-top: 12px; padding: 9px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; background: #22c55e; color: #052e16; }
-    .action-btn.done { background: #475569; color: #94a3b8; cursor: default; }
-
-    /* Modal (Z Raporu) */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; }
-    .modal-box { background: #1e293b; border-radius: 16px; padding: 28px; width: 90%; max-width: 440px; text-align: center; border: 2px solid #38bdf8; }
-    .modal-box h2 { margin: 0 0 16px 0; color: #38bdf8; }
-    .z-report-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #334155; font-size: 15px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+    .form-group input { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: white; font-size: 14px; }
   </style>
 </head>
 <body>
 
-  <div class="dashboard-grid">
-    <!-- Sol: Kasa & Fiyat Kontrol -->
-    <div class="sidebar">
-      <div class="kpi-card">
-        <div class="kpi-title">Toplam Günlük Ciro</div>
-        <div class="kpi-value green"><span id="hasilatDisplay">{{ gunluk_durum.toplam_hasilat }}</span> ₺</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-title">Teslim Edilen Sipariş</div>
-        <div class="kpi-value"><span id="adetDisplay">{{ gunluk_durum.tamamlanan_siparis_sayisi }}</span> Adet</div>
-      </div>
+<div class="header-bar">
+  <div>
+    <h1>🧇 Waffle POS & Kasa</h1>
+    <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Canlı Mutfak ve Sipariş Takip Paneli</div>
+  </div>
 
-      <h3 style="font-size: 15px; margin: 18px 0 10px; border-top: 1px solid #334155; padding-top: 14px;">🏷️ Menü Fiyat Ayarları</h3>
-      <form id="priceForm">
-        <div class="price-input-group">
-          <label>Taban Waffle (Hamur+1 Sos) ₺</label>
-          <input type="number" id="p_taban" value="{{ fiyatlar.taban_fiyat }}">
-        </div>
-        <div class="price-input-group">
-          <label>Ekstra Çikolata ₺</label>
-          <input type="number" id="p_cikolata" value="{{ fiyatlar.ekstra_cikolata }}">
-        </div>
-        <div class="price-input-group">
-          <label>Ekstra Meyve (Birim) ₺</label>
-          <input type="number" id="p_meyve" value="{{ fiyatlar.ekstra_meyve }}">
-        </div>
-        <div class="price-input-group">
-          <label>Ekstra Süsleme (Birim) ₺</label>
-          <input type="number" id="p_susleme" value="{{ fiyatlar.ekstra_susleme }}">
-        </div>
-        <button type="submit" class="btn-save">Fiyatları Güncelle</button>
-      </form>
-
-      <div id="dayControl">
-        {% if gunluk_durum.gun_acik %}
-          <button class="btn-end-day" onclick="gunBitir()">🛑 Günü Bitir (Z Raporu Al)</button>
-        {% else %}
-          <button class="btn-start-day" onclick="gunBaslat()">🚀 Yeni Günü Başlat</button>
-        {% endif %}
-      </div>
+  <div class="stats-container">
+    <div class="stat-card">
+      <div class="stat-label">Toplam Hasılat</div>
+      <div class="stat-val"><span id="totalRevenue">{{ gunluk_durum.toplam_hasilat }}</span> ₺</div>
     </div>
+    <div class="stat-card">
+      <div class="stat-label">Tamamlanan</div>
+      <div class="stat-val"><span id="totalOrders">{{ gunluk_durum.tamamlanan_siparis_sayisi }}</span> Adet</div>
+    </div>
+  </div>
 
-    <!-- Sağ: Sipariş Kartları -->
-    <div class="orders-area">
-      <div class="top-bar">
-        <h1 style="margin:0; font-size: 22px; color: #f59e0b;">🔔 Mutfak & Kasa Sipariş Akışı</h1>
-        <div id="dayStatusBadge" style="font-size: 13px; font-weight: bold; color: {% if gunluk_durum.gun_acik %}#4ade80{% else %}#f87171{% endif %};">
-          ● {% if gunluk_durum.gun_acik %}KASA AÇIK{% else %}KASA KAPALI{% endif %}
-        </div>
-      </div>
+  <div class="actions">
+    <button class="btn btn-red" id="gunSonuBtn" onclick="gunDurum('bitir')" {% if not gunluk_durum.gun_acik %}style="display:none;"{% endif %}>Gün Sonu Yap</button>
+    <button class="btn btn-green" id="gunBaslatBtn" onclick="gunDurum('baslat')" {% if gunluk_durum.gun_acik %}style="display:none;"{% endif %}>Yeni Gün Başlat</button>
+  </div>
+</div>
 
-      <div class="orders-grid" id="ordersContainer">
-        {% for s in siparisler %}
-          <div class="order-card {% if s.durum == 'Teslim Edildi' %}completed{% endif %}" id="card-{{ s.id }}">
-            <div class="card-header">
-              <span class="table-badge">Masa {{ s.masa }}</span>
-              <span class="price-tag">{{ s.tutar }} ₺</span>
-            </div>
-            <div class="detail-item"><strong>Hamur:</strong> {{ s.hamur }}</div>
-            <div class="detail-item"><strong>Çikolatalar:</strong> {{ s.cikolatalar | join(', ') }}</div>
-            <div class="detail-item"><strong>Meyveler:</strong> {{ s.meyveler | join(', ') }}</div>
-            <div class="detail-item"><strong>Süslemeler:</strong> {{ s.suslemeler | join(', ') }}</div>
-            {% if s.not %}
-              <div class="note-box"><strong>Not:</strong> {{ s.not }}</div>
-            {% endif %}
-
-            {% if s.durum == 'Teslim Edildi' %}
-              <button class="action-btn done" disabled>Teslim Edildi</button>
-            {% else %}
-              <button class="action-btn" onclick="tamamla({{ s.id }})">Servis Edildi Olarak İşaretle</button>
-            {% endif %}
+<div class="grid-layout">
+  <div class="section-box">
+    <h2>
+      <span>🔥 Gelen Siparişler</span>
+      <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Canlı Akış</span>
+    </h2>
+    <div class="orders-grid" id="ordersGrid">
+      {% for s in siparisler reversed %}
+        <div class="order-card {% if s.durum == 'Teslim Edildi' %}done{% endif %}" id="kasa-order-{{ s.id }}">
+          <div class="order-header">
+            <span class="table-tag">Masa {{ s.masa }}</span>
+            <span class="order-time">{{ s.saat }} • #{{ s.id }}</span>
           </div>
-        {% endfor %}
-      </div>
+          <div class="order-body">
+            <div><strong>Hamur:</strong> {{ s.hamur }}</div>
+            <div><strong>Çikolata:</strong> {{ s.cikolatalar | join(', ') }}</div>
+            <div><strong>Meyve:</strong> {{ s.meyveler | join(', ') }}</div>
+            <div><strong>Süsleme:</strong> {{ s.suslemeler | join(', ') }}</div>
+            {% if s.not %}
+              <div class="order-note">Not: {{ s.not }}</div>
+            {% endif %}
+            <div style="margin-top: 8px; font-weight: bold; color: #38bdf8;">Tutar: {{ s.tutar }} ₺</div>
+          </div>
+          {% if s.durum == 'Hazırlanıyor' %}
+            <button class="done-btn" onclick="siparisTamamla({{ s.id }})">Teslim Edildi İşaretle</button>
+          {% else %}
+            <div style="text-align: center; margin-top: 10px; font-size: 13px; color: #86efac; font-weight: bold;">Teslim Edildi ✅</div>
+          {% endif %}
+        </div>
+      {% endfor %}
     </div>
   </div>
 
-  <!-- Z Raporu Modalı -->
-  <div class="modal-overlay" id="zReportModal">
-    <div class="modal-box">
-      <h2>📊 Gün Sonu Z Raporu</h2>
-      <div class="z-report-item">
-        <span>Kapanış Zamanı:</span>
-        <strong id="zTime">-</strong>
+  <div class="section-box">
+    <h2>Fiyat Güncelleme</h2>
+    <form id="priceForm" onsubmit="event.preventDefault(); fiyatlariKaydet();">
+      <div class="form-group">
+        <label>Taban Waffle Fiyatı (₺)</label>
+        <input type="number" id="p_taban" value="{{ fiyatlar.taban_fiyat }}" required>
       </div>
-      <div class="z-report-item">
-        <span>Toplam Sipariş:</span>
-        <strong id="zCount">0 Adet</strong>
+      <div class="form-group">
+        <label>Ekstra Çikolata Fiyatı (₺)</label>
+        <input type="number" id="p_cikolata" value="{{ fiyatlar.ekstra_cikolata }}" required>
       </div>
-      <div class="z-report-item" style="font-size: 18px; color: #4ade80;">
-        <span>Toplam Hasılat:</span>
-        <strong id="zRevenue">0.00 ₺</strong>
+      <div class="form-group">
+        <label>Meyve Adet Fiyatı (₺)</label>
+        <input type="number" id="p_meyve" value="{{ fiyatlar.ekstra_meyve }}" required>
       </div>
-      <button class="btn-start-day" onclick="closeModalAndRefresh()" style="margin-top:20px;">Tamam & Kapat</button>
-    </div>
+      <div class="form-group">
+        <label>Süsleme Adet Fiyatı (₺)</label>
+        <input type="number" id="p_susleme" value="{{ fiyatlar.ekstra_susleme }}" required>
+      </div>
+      <button type="submit" class="btn btn-blue" style="width: 100%;">Fiyatları Kaydet</button>
+    </form>
   </div>
+</div>
 
 <script>
   const socket = io();
 
-  // Fiyat formunu kaydet
-  document.getElementById("priceForm").addEventListener("submit", function(e) {
-    e.preventDefault();
-    const yeniFiyatlar = {
+  socket.on("kasaya_bildir", function(data) {
+    const card = document.createElement("div");
+    card.className = "order-card";
+    card.id = `kasa-order-${data.id}`;
+    
+    let noteHtml = data.not ? `<div class="order-note">Not: ${data.not}</div>` : '';
+
+    card.innerHTML = `
+      <div class="order-header">
+        <span class="table-tag">Masa ${data.masa}</span>
+        <span class="order-time">${data.saat} • #${data.id}</span>
+      </div>
+      <div class="order-body">
+        <div><strong>Hamur:</strong> ${data.hamur}</div>
+        <div><strong>Çikolata:</strong> ${data.cikolatalar.join(', ')}</div>
+        <div><strong>Meyve:</strong> ${data.meyveler.join(', ')}</div>
+        <div><strong>Süsleme:</strong> ${data.suslemeler.join(', ')}</div>
+        ${noteHtml}
+        <div style="margin-top: 8px; font-weight: bold; color: #38bdf8;">Tutar: ${data.tutar} ₺</div>
+      </div>
+      <button class="done-btn" onclick="siparisTamamla(${data.id})">Teslim Edildi İşaretle</button>
+    `;
+    document.getElementById("ordersGrid").prepend(card);
+  });
+
+  function siparisTamamla(id) {
+    socket.emit("siparis_tamamla", { id: id });
+  }
+
+  socket.on("durum_guncellendi", function(data) {
+    const card = document.getElementById(`kasa-order-${data.id}`);
+    if (card) {
+      card.classList.add("done");
+      const btn = card.querySelector(".done-btn");
+      if (btn) {
+        btn.outerHTML = `<div style="text-align: center; margin-top: 10px; font-size: 13px; color: #86efac; font-weight: bold;">Teslim Edildi ✅</div>`;
+      }
+    }
+    document.getElementById("totalRevenue").innerText = data.toplam_hasilat;
+    document.getElementById("totalOrders").innerText = data.tamamlanan_adet;
+  });
+
+  function fiyatlariKaydet() {
+    const data = {
       taban_fiyat: document.getElementById("p_taban").value,
       ekstra_cikolata: document.getElementById("p_cikolata").value,
       ekstra_meyve: document.getElementById("p_meyve").value,
       ekstra_susleme: document.getElementById("p_susleme").value
     };
-    socket.emit("fiyat_guncelle", yeniFiyatlar);
-    alert("✅ Fiyatlar başarıyla güncellendi ve menüye yansıdı!");
-  });
-
-  // Sipariş tamamlama
-  function tamamla(id) {
-    socket.emit("siparis_tamamla", { id: id });
+    socket.emit("fiyat_guncelle", data);
+    alert("Fiyatlar güncellendi!");
   }
 
-  // Günü Bitir
-  function gunBitir() {
-    if (confirm("Günü bitirmek istediğinize emin misiniz? Gün sonu raporu oluşturulacak.")) {
-      socket.emit("gun_durum_degistir", "bitir");
+  function gunDurum(action) {
+    if (confirm(action === 'bitir' ? "Günü sonlandırmak istiyor musunuz?" : "Yeni gün başlatılsın mı?")) {
+      socket.emit("gun_durum_degistir", action);
     }
   }
 
-  // Günü Başlat
-  function gunBaslat() {
-    if (confirm("Yeni günü başlatmak ve sayacı sıfırlamak istiyor musunuz?")) {
-      socket.emit("gun_durum_degistir", "baslat");
-    }
-  }
-
-  // Sipariş teslim edilince ciro göstergesini güncelle
-  socket.on("durum_guncellendi", function(data) {
-    const card = document.getElementById(`card-${data.id}`);
-    if (card) {
-      card.classList.add("completed");
-      const btn = card.querySelector(".action-btn");
-      btn.className = "action-btn done";
-      btn.disabled = true;
-      btn.innerText = "Teslim Edildi";
-    }
-    document.getElementById("hasilatDisplay").innerText = data.toplam_hasilat;
-    document.getElementById("adetDisplay").innerText = data.tamamlanan_adet;
-  });
-
-  // Yeni sipariş geldiğinde karta ekle
-  socket.on("kasaya_bildir", function(data) {
-    const container = document.getElementById("ordersContainer");
-    const card = document.createElement("div");
-    card.className = "order-card";
-    card.id = `card-${data.id}`;
-    card.innerHTML = `
-      <div class="card-header">
-        <span class="table-badge">Masa ${data.masa}</span>
-        <span class="price-tag">${data.tutar} ₺</span>
-      </div>
-      <div class="detail-item"><strong>Hamur:</strong> ${data.hamur}</div>
-      <div class="detail-item"><strong>Çikolatalar:</strong> ${data.cikolatalar.join(', ')}</div>
-      <div class="detail-item"><strong>Meyveler:</strong> ${data.meyveler.join(', ')}</div>
-      <div class="detail-item"><strong>Süslemeler:</strong> ${data.suslemeler.join(', ')}</div>
-      ${data.not ? `<div class="note-box"><strong>Not:</strong> ${data.not}</div>` : ""}
-      <button class="action-btn" onclick="tamamla(${data.id})">Servis Edildi Olarak İşaretle</button>
-    `;
-    container.prepend(card);
-  });
-
-  // Gün kapandığında modal göster
   socket.on("gun_kapandi", function(ozet) {
-    document.getElementById("zTime").innerText = ozet.kapanis_zamani;
-    document.getElementById("zCount").innerText = ozet.toplam_siparis + " Adet";
-    document.getElementById("zRevenue").innerText = ozet.toplam_hasilat + " ₺";
-    document.getElementById("zReportModal").style.display = "flex";
+    document.getElementById("gunSonuBtn").style.display = "none";
+    document.getElementById("gunBaslatBtn").style.display = "inline-block";
+    alert(`Gün sonlandırıldı!\nToplam Hasılat: ${ozet.toplam_hasilat} ₺\nToplam Sipariş: ${ozet.toplam_siparis}`);
   });
 
-  function closeModalAndRefresh() {
-    location.reload();
-  }
-
-  socket.on("gun_basladi", function() {
-    location.reload();
+  socket.on("gun_basladi", function(data) {
+    document.getElementById("gunSonuBtn").style.display = "inline-block";
+    document.getElementById("gunBaslatBtn").style.display = "none";
+    document.getElementById("totalRevenue").innerText = "0";
+    document.getElementById("totalOrders").innerText = "0";
+    document.getElementById("ordersGrid").innerHTML = "";
+    alert("Yeni gün başlatıldı!");
   });
 </script>
 
