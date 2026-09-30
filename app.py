@@ -2,7 +2,7 @@ import csv
 import io
 import json
 from datetime import datetime
-from flask import Flask, render_template, request, session, redirect, url_for, Response
+from flask import Flask, render_template, request, session, redirect, url_for, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO, emit
 
@@ -15,6 +15,19 @@ db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 KASA_PIN = "1234"
+
+# Varsayılan Menü Fiyatları ve Durum Ayarları
+VARSAYILAN_FIYATLAR = {
+    "taban_fiyat": 150,
+    "ekstra_meyve": 25,
+    "ekstra_cikolata": 25,
+    "ekstra_susleme": 15
+}
+
+VARSAYILAN_DURUM = {
+    "acik": True,
+    "mesaj": "Siparişler açık"
+}
 
 # --- VERİTABANI MODELLERİ ---
 class Siparis(db.Model):
@@ -43,14 +56,34 @@ class Siparis(db.Model):
             "tarih": self.tarih.strftime("%H:%M")
         }
 
+class Ayar(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    anahtar = db.Column(db.String(50), unique=True, nullable=False)
+    deger = db.Column(db.Text, nullable=False)
+
+def ayar_getir(anahtar):
+    ayar = Ayar.query.filter_by(anahtar=anahtar).first()
+    if ayar:
+        try:
+            return json.loads(ayar.deger)
+        except Exception:
+            return ayar.deger
+    if anahtar == 'fiyatlar':
+        return VARSAYILAN_FIYATLAR
+    if anahtar == 'gunluk_durum':
+        return VARSAYILAN_DURUM
+    return None
+
 with app.app_context():
     db.create_all()
 
-# --- 1. MÜŞTERİ MENÜ EKRANI (SİPARİŞ VERME EKRANI) ---
+# --- 1. MÜŞTERİ MENÜ EKRANI ---
 @app.route('/')
 def menu():
     masa = request.args.get('masa', '1')
-    return render_template('menu.html', masa=masa)
+    fiyatlar = ayar_getir('fiyatlar')
+    gunluk_durum = ayar_getir('gunluk_durum')
+    return render_template('menu.html', masa=masa, fiyatlar=fiyatlar, gunluk_durum=gunluk_durum)
 
 # --- 2. KASA & ŞİFRE ROTALARI ---
 @app.route('/kasa-giris', methods=['GET', 'POST'])
@@ -75,10 +108,16 @@ def kasa_cikis():
 def kasa():
     if not session.get('kasa_yetkili'):
         return redirect(url_for('kasa_giris'))
-    
+
+    fiyatlar = ayar_getir('fiyatlar')
+    gunluk_durum = ayar_getir('gunluk_durum')
     tum_siparisler = Siparis.query.order_by(Siparis.id.asc()).all()
     siparis_listesi = [s.to_dict() for s in tum_siparisler]
-    return render_template('kasa.html', siparisler=siparis_listesi)
+    
+    return render_template('kasa.html',
+                           siparisler=siparis_listesi,
+                           fiyatlar=fiyatlar,
+                           gunluk_durum=gunluk_durum)
 
 # --- 3. EXCEL / CSV İNDİRME ---
 @app.route('/admin/siparisler-indir')
