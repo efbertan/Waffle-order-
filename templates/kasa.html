@@ -3,216 +3,224 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Waffle POS - Kasa & Mutfak Paneli</title>
+  <title>Kasa & Mutfak Takip Paneli</title>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
-    .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
-    h1 { margin: 0; font-size: 24px; color: #f97316; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #0f172a; color: #f8fafc; padding: 20px; }
     
-    .stats-container { display: flex; gap: 16px; flex-wrap: wrap; }
-    .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 12px 18px; min-width: 140px; }
-    .stat-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; }
-    .stat-val { font-size: 22px; font-weight: bold; color: #38bdf8; margin-top: 4px; }
-    
-    .actions { display: flex; gap: 10px; }
-    .btn { border: none; border-radius: 8px; padding: 10px 16px; font-weight: bold; cursor: pointer; font-size: 14px; }
-    .btn-red { background: #ef4444; color: white; }
-    .btn-green { background: #22c55e; color: white; }
-    .btn-blue { background: #3b82f6; color: white; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #334155;
+      margin-bottom: 25px;
+    }
+    .header-left h1 { font-size: 24px; color: #f59e0b; }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 5px;
+    }
+    .status-open { background: #065f46; color: #34d399; }
+    .status-closed { background: #7f1d1d; color: #f87171; }
 
-    .grid-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-    @media (max-width: 900px) { .grid-layout { grid-template-columns: 1fr; } }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-green { background: #10b981; color: #fff; }
+    .btn-red { background: #ef4444; color: #fff; }
+    .btn-blue { background: #3b82f6; color: #fff; }
+    .btn-gray { background: #475569; color: #fff; }
 
-    .section-box { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 16px; }
-    .section-box h2 { margin-top: 0; font-size: 18px; border-bottom: 1px solid #334155; padding-bottom: 10px; display: flex; justify-content: space-between; }
-
-    .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-    .order-card { background: #0f172a; border: 2px solid #f97316; border-radius: 12px; padding: 14px; position: relative; }
-    .order-card.done { border-color: #22c55e; opacity: 0.6; }
-    .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 15px; }
-    .table-tag { background: #ea580c; color: white; padding: 3px 8px; border-radius: 6px; font-weight: bold; }
-    .order-time { font-size: 12px; color: #94a3b8; }
-    .order-body { font-size: 13px; line-height: 1.5; color: #cbd5e1; }
-    .order-body strong { color: #fff; }
-    .order-note { background: #334155; padding: 6px 8px; border-radius: 6px; margin-top: 8px; font-style: italic; color: #fde047; font-size: 12px; }
-    
-    .done-btn { width: 100%; margin-top: 12px; padding: 8px; background: #22c55e; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-    .done-btn:hover { background: #16a34a; }
-
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
-    .form-group input { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: white; font-size: 14px; }
+    .orders-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .order-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+    }
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 8px;
+    }
+    .order-table { font-size: 18px; font-weight: 700; color: #f59e0b; }
+    .order-time { font-size: 13px; color: #94a3b8; }
+    .order-details { font-size: 14px; line-height: 1.5; color: #cbd5e1; }
+    .order-details div { margin-bottom: 4px; }
+    .order-details strong { color: #f8fafc; }
+    .order-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 10px;
+      border-top: 1px solid #334155;
+    }
+    .order-price { font-size: 18px; font-weight: 700; color: #10b981; }
+    .order-actions { display: flex; gap: 6px; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
   </style>
 </head>
 <body>
 
-<div class="header-bar">
-  <div>
-    <h1>🧇 Waffle POS & Kasa</h1>
-    <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Canlı Mutfak ve Sipariş Takip Paneli</div>
-  </div>
-
-  <div class="stats-container">
-    <div class="stat-card">
-      <div class="stat-label">Toplam Hasılat</div>
-      <div class="stat-val"><span id="totalRevenue">{{ gunluk_durum.toplam_hasilat }}</span> ₺</div>
+  <header>
+    <div class="header-left">
+      <h1>🧇 Waffle Kasa & Mutfak Paneli</h1>
+      <div id="durumGosterge">
+        {% if gunluk_durum.acik %}
+          <span class="status-badge status-open">● Sipariş Alımı Açık</span>
+        {% else %}
+          <span class="status-badge status-closed">● Gün Sonu Yapıldı (Kapalı)</span>
+        {% endif %}
+      </div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Tamamlanan</div>
-      <div class="stat-val"><span id="totalOrders">{{ gunluk_durum.tamamlanan_siparis_sayisi }}</span> Adet</div>
+
+    <div class="header-actions">
+      <!-- Gün Durumu Butonları -->
+      <button id="btnGunSonu" class="btn btn-red" onclick="gunDurumAyarla(false)" style="{% if not gunluk_durum.acik %}display:none;{% endif %}">
+        🛑 Gün Sonu Yap
+      </button>
+      <button id="btnGunBaslat" class="btn btn-green" onclick="gunDurumAyarla(true)" style="{% if gunluk_durum.acik %}display:none;{% endif %}">
+        🟢 Yeni Gün Başlat
+      </button>
+
+      <a href="/admin/siparisler-indir" class="btn btn-blue">📥 Excel İndir</a>
+      <a href="/kasa-cikis" class="btn btn-gray">🔒 Çıkış</a>
     </div>
-  </div>
+  </header>
 
-  <div class="actions">
-    <button class="btn btn-red" id="gunSonuBtn" onclick="gunDurum('bitir')" {% if not gunluk_durum.gun_acik %}style="display:none;"{% endif %}>Gün Sonu Yap</button>
-    <button class="btn btn-green" id="gunBaslatBtn" onclick="gunDurum('baslat')" {% if gunluk_durum.gun_acik %}style="display:none;"{% endif %}>Yeni Gün Başlat</button>
-    <a href="/kasa-cikis" style="text-decoration:none; background:#ef4444; color:#fff; padding:8px 14px; border-radius:8px; font-size:14px; font-weight:600;">🔒 Çıkış Yap</a>
-  </div>
-</div>
-
-<div class="grid-layout">
-  <div class="section-box">
-    <h2>
-      <span>🔥 Gelen Siparişler</span>
-      <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Canlı Akış</span>
-    </h2>
-    <div class="orders-grid" id="ordersGrid">
-      {% for s in siparisler | reverse %}
-        <div class="order-card {% if s.durum == 'Teslim Edildi' %}done{% endif %}" id="kasa-order-{{ s.id }}">
-          <div class="order-header">
-            <span class="table-tag">Masa {{ s.masa }}</span>
-            <span class="order-time">{{ s.saat }} • #{{ s.id }}</span>
-          </div>
-          <div class="order-body">
-            <div><strong>Hamur:</strong> {{ s.hamur }}</div>
-            <div><strong>Çikolata:</strong> {{ s.cikolatalar | join(', ') }}</div>
-            <div><strong>Meyve:</strong> {{ s.meyveler | join(', ') }}</div>
-            <div><strong>Süsleme:</strong> {{ s.suslemeler | join(', ') }}</div>
-            {% if s.not %}
-              <div class="order-note">Not: {{ s.not }}</div>
-            {% endif %}
-            <div style="margin-top: 8px; font-weight: bold; color: #38bdf8;">Tutar: {{ s.tutar }} ₺</div>
-          </div>
-          {% if s.durum == 'Hazırlanıyor' %}
-            <button class="done-btn" onclick="siparisTamamla({{ s.id }})">Teslim Edildi İşaretle</button>
-          {% else %}
-            <div style="text-align: center; margin-top: 10px; font-size: 13px; color: #86efac; font-weight: bold;">Teslim Edildi ✅</div>
+  <main>
+    <div class="orders-grid" id="siparislerKonteyner">
+      {% for s in siparisler %}
+      <div class="order-card" id="siparis-{{ s.id }}">
+        <div class="order-header">
+          <span class="order-table">Masa {{ s.masa }}</span>
+          <span class="order-time">#{{ s.id }} | {{ s.tarih }}</span>
+        </div>
+        <div class="order-details">
+          <div><strong>Hamur:</strong> {{ s.hamur or 'Belirtilmedi' }}</div>
+          <div><strong>Çikolatalar:</strong> {{ s.cikolatalar | join(', ') if s.cikolatalar else 'Yok' }}</div>
+          <div><strong>Meyveler:</strong> {{ s.meyveler | join(', ') if s.meyveler else 'Yok' }}</div>
+          <div><strong>Süslemeler:</strong> {{ s.suslemeler | join(', ') if s.suslemeler else 'Yok' }}</div>
+          {% if s.notlar %}
+          <div><strong>Not:</strong> <em>{{ s.notlar }}</em></div>
           {% endif %}
         </div>
+        <div class="order-footer">
+          <span class="order-price">{{ s.fiyat }} ₺</span>
+          <div class="order-actions">
+            {% if s.durum != 'Tamamlandı' %}
+              <button class="btn btn-green btn-sm" onclick="durumDegistir({{ s.id }}, 'Tamamlandı')">Tamamla</button>
+            {% else %}
+              <span style="font-size: 12px; color: #10b981; font-weight: 600;">✓ Tamamlandı</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
       {% endfor %}
     </div>
-  </div>
+  </main>
 
-  <div class="section-box">
-    <h2>Fiyat Güncelleme</h2>
-    <form id="priceForm" onsubmit="event.preventDefault(); fiyatlariKaydet();">
-      <div class="form-group">
-        <label>Taban Waffle Fiyatı (₺)</label>
-        <input type="number" id="p_taban" value="{{ fiyatlar.taban_fiyat }}" required>
-      </div>
-      <div class="form-group">
-        <label>Ekstra Çikolata Fiyatı (₺)</label>
-        <input type="number" id="p_cikolata" value="{{ fiyatlar.ekstra_cikolata }}" required>
-      </div>
-      <div class="form-group">
-        <label>Meyve Adet Fiyatı (₺)</label>
-        <input type="number" id="p_meyve" value="{{ fiyatlar.ekstra_meyve }}" required>
-      </div>
-      <div class="form-group">
-        <label>Süsleme Adet Fiyatı (₺)</label>
-        <input type="number" id="p_susleme" value="{{ fiyatlar.ekstra_susleme }}" required>
-      </div>
-      <button type="submit" class="btn btn-blue" style="width: 100%;">Fiyatları Kaydet</button>
-    </form>
-  </div>
-</div>
+  <script>
+    // Socket.IO Bağlantısı
+    const socket = io();
 
-<script>
-  const socket = io();
+    socket.on('connect', () => {
+      console.log('Socket bağlantısı sağlandı.');
+    });
 
-  socket.on("kasaya_bildir", function(data) {
-    const card = document.createElement("div");
-    card.className = "order-card";
-    card.id = `kasa-order-${data.id}`;
-    
-    let noteHtml = data.not ? `<div class="order-note">Not: ${data.not}</div>` : '';
+    // 1. GÜN SONU / YENİ GÜN BAŞLAT
+    function gunDurumAyarla(acikMi) {
+      const mesaj = acikMi ? "Siparişler açık" : "Bugünlük sipariş alımı durdurulmuştur.";
+      socket.emit('gun_durum_degistir', { acik: acikMi, mesaj: mesaj });
+    }
 
-    card.innerHTML = `
-      <div class="order-header">
-        <span class="table-tag">Masa ${data.masa}</span>
-        <span class="order-time">${data.saat} • #${data.id}</span>
-      </div>
-      <div class="order-body">
-        <div><strong>Hamur:</strong> ${data.hamur}</div>
-        <div><strong>Çikolata:</strong> ${data.cikolatalar.join(', ')}</div>
-        <div><strong>Meyve:</strong> ${data.meyveler.join(', ')}</div>
-        <div><strong>Süsleme:</strong> ${data.suslemeler.join(', ')}</div>
-        ${noteHtml}
-        <div style="margin-top: 8px; font-weight: bold; color: #38bdf8;">Tutar: ${data.tutar} ₺</div>
-      </div>
-      <button class="done-btn" onclick="siparisTamamla(${data.id})">Teslim Edildi İşaretle</button>
-    `;
-    document.getElementById("ordersGrid").prepend(card);
-  });
+    // Sunucudan gün durumu güncellemesi geldiğinde butonları ve rozeti değiştir
+    socket.on('gun_durumu_guncellendi', (data) => {
+      const gosterge = document.getElementById('durumGosterge');
+      const btnSonu = document.getElementById('btnGunSonu');
+      const btnBaslat = document.getElementById('btnGunBaslat');
 
-  function siparisTamamla(id) {
-    socket.emit("siparis_tamamla", { id: id });
-  }
-
-  socket.on("durum_guncellendi", function(data) {
-    const card = document.getElementById(`kasa-order-${data.id}`);
-    if (card) {
-      card.classList.add("done");
-      const btn = card.querySelector(".done-btn");
-      if (btn) {
-        btn.outerHTML = `<div style="text-align: center; margin-top: 10px; font-size: 13px; color: #86efac; font-weight: bold;">Teslim Edildi ✅</div>`;
+      if (data.acik) {
+        gosterge.innerHTML = '<span class="status-badge status-open">● Sipariş Alımı Açık</span>';
+        btnSonu.style.display = 'inline-block';
+        btnBaslat.style.display = 'none';
+      } else {
+        gosterge.innerHTML = '<span class="status-badge status-closed">● Gün Sonu Yapıldı (Kapalı)</span>';
+        btnSonu.style.display = 'none';
+        btnBaslat.style.display = 'inline-block';
       }
+    });
+
+    // 2. SİPARİŞ DURUMU GÜNCELLE (TAMAMLA)
+    function durumDegistir(id, yeniDurum) {
+      socket.emit('siparis_durum_guncelle', { id: id, durum: yeniDurum });
     }
-    document.getElementById("totalRevenue").innerText = data.toplam_hasilat;
-    document.getElementById("totalOrders").innerText = data.tamamlanan_adet;
-  });
 
-  function fiyatlariKaydet() {
-    const data = {
-      taban_fiyat: document.getElementById("p_taban").value,
-      ekstra_cikolata: document.getElementById("p_cikolata").value,
-      ekstra_meyve: document.getElementById("p_meyve").value,
-      ekstra_susleme: document.getElementById("p_susleme").value
-    };
-    socket.emit("fiyat_guncelle", data);
-    alert("Fiyatlar güncellendi!");
-  }
-function gunDurum(action) {
-    const mesaj = action === 'bitir' ? "Günü sonlandırmak istiyor musunuz?" : "Yeni gün başlatılsın mı?";
-    if (confirm(mesaj)) {
-      socket.emit("gun_durum_degistir", action);
-    }
-  }
+    socket.on('siparis_guncellendi', (data) => {
+      const kart = document.getElementById('siparis-' + data.id);
+      if (kart && data.durum === 'Tamamlandı') {
+        const actionArea = kart.querySelector('.order-actions');
+        if (actionArea) {
+          actionArea.innerHTML = '<span style="font-size: 12px; color: #10b981; font-weight: 600;">✓ Tamamlandı</span>';
+        }
+      }
+    });
 
-  socket.on("gun_kapandi", function(ozet) {
-    const btnBitir = document.getElementById("gunSonuBtn");
-    const btnBaslat = document.getElementById("gunBaslatBtn");
-    if (btnBitir) btnBitir.style.display = "none";
-    if (btnBaslat) btnBaslat.style.display = "inline-block";
-    
-    alert("Gün başarıyla kapatıldı!\n\nToplam Hasılat: " + ozet.toplam_hasilat + " ₺\nTamamlanan Sipariş: " + ozet.toplam_siparis);
-  });
-
-  socket.on("gun_basladi", function(data) {
-    const btnBitir = document.getElementById("gunSonuBtn");
-    const btnBaslat = document.getElementById("gunBaslatBtn");
-    if (btnBitir) btnBitir.style.display = "inline-block";
-    if (btnBaslat) btnBaslat.style.display = "none";
-    
-    document.getElementById("totalRevenue").innerText = "0";
-    document.getElementById("totalOrders").innerText = "0";
-    document.getElementById("ordersGrid").innerHTML = "";
-    
-    alert("Yeni gün başlatıldı, menü siparişlere yeniden açıldı!");
-  });
-</script>
-
+    // 3. YENİ SİPARİŞ GELDİĞİNDE EKRANA KART EKLE
+    socket.on('kasa_yeni_siparis', (s) => {
+      const container = document.getElementById('siparislerKonteyner');
+      const kart = document.createElement('div');
+      kart.className = 'order-card';
+      kart.id = 'siparis-' + s.id;
+      kart.innerHTML = `
+        <div class="order-header">
+          <span class="order-table">Masa ${s.masa}</span>
+          <span class="order-time">#${s.id} | ${s.tarih}</span>
+        </div>
+        <div class="order-details">
+          <div><strong>Hamur:</strong> ${s.hamur || 'Belirtilmedi'}</div>
+          <div><strong>Çikolatalar:</strong> ${(s.cikolatalar || []).join(', ') || 'Yok'}</div>
+          <div><strong>Meyveler:</strong> ${(s.meyveler || []).join(', ') || 'Yok'}</div>
+          <div><strong>Süslemeler:</strong> ${(s.suslemeler || []).join(', ') || 'Yok'}</div>
+          ${s.notlar ? `<div><strong>Not:</strong> <em>${s.notlar}</em></div>` : ''}
+        </div>
+        <div class="order-footer">
+          <span class="order-price">${s.fiyat} ₺</span>
+          <div class="order-actions">
+            <button class="btn btn-green btn-sm" onclick="durumDegistir(${s.id}, 'Tamamlandı')">Tamamla</button>
+          </div>
+        </div>
+      `;
+      container.prepend(kart);
+    });
+  </script>
 </body>
 </html>
