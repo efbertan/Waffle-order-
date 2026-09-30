@@ -135,6 +135,11 @@
       flex-direction: column;
       gap: 14px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      animation: fadeIn 0.3s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .order-card.done { opacity: 0.6; border-color: #064e3b; }
     .order-header {
@@ -176,7 +181,8 @@
     </div>
 
     <div class="header-btns">
-      <button class="btn btn-purple" onclick="toggleUrunPaneli()">⚙️ Ürünleri Yönet</button>
+      <button class="btn btn-gray" onclick="sesCal()" title="Sesi Test Et">🔔 Ses Testi</button>
+      <button class="btn btn-purple" onclick="toggleUrunPaneli()">⚙️️ Ürünleri Yönet</button>
       <button id="btnGunSonu" class="btn btn-red" onclick="gunDurumGuncelle(false)" style="{% if not gunluk_durum.acik %}display:none;{% endif %}">
         🛑 Gün Sonu Yap
       </button>
@@ -192,7 +198,6 @@
   <div class="menu-manager-card" id="urunYonetimPaneli">
     <h2>🛠️ Menü & Malzeme Düzenleyici</h2>
     
-    <!-- Yeni Ekleme Satırı -->
     <div class="add-product-row">
       <select id="yeniKategori" class="form-select">
         <option value="hamur">Hamur</option>
@@ -200,11 +205,10 @@
         <option value="meyve">Meyve</option>
         <option value="susleme">Süsleme</option>
       </select>
-      <input type="text" id="yeniUrunAd" class="form-input" placeholder="Yeni malzeme adı (örn: Lotus Kreması, Frambuaz)...">
+      <input type="text" id="yeniUrunAd" class="form-input" placeholder="Yeni malzeme adı...">
       <button class="btn btn-green" onclick="yeniUrunEkle()">+ Ürünü Ekle</button>
     </div>
 
-    <!-- Mevcut Ürünler Listesi -->
     <div class="product-list" id="urunListesiKonteyner">
       {% for u in urunler %}
       <div class="product-item" id="urun-item-{{ u.id }}">
@@ -214,7 +218,7 @@
         </div>
         <div class="product-actions">
           <button class="btn-icon" title="İsmi Değiştir" onclick="urunDuzenle({{ u.id }}, '{{ u.ad }}')">✏️</button>
-          <button class="btn-icon" title="Sil" onclick="urunSil({{ u.id }})">🗑️</button>
+          <button class="btn-icon" title="Sil" onclick="urunSil({{ u.id }})">🗑️️</button>
         </div>
       </div>
       {% endfor %}
@@ -271,6 +275,40 @@
 
   <script>
     const socket = io();
+
+    // --- SESLİ BİLDİRİM FONKSİYONU (Web Audio API) ---
+    function sesCal() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+
+        // 1. Ton (Yüksek Ding)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(587.33, ctx.currentTime); // D5 notası
+        gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.4);
+
+        // 2. Ton (Tatlı Dong)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5 notası
+        gain2.gain.setValueAtTime(0.3, ctx.currentTime + 0.15);
+        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.65);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(ctx.currentTime + 0.15);
+        osc2.stop(ctx.currentTime + 0.65);
+      } catch (e) {
+        console.log("Ses çalınamadı (tarayıcı izni gerekiyor olabilir):", e);
+      }
+    }
 
     // Ürün Paneli Aç/Kapa
     function toggleUrunPaneli() {
@@ -360,7 +398,7 @@
       }
     }
 
-   // GÜN DURUMU GÜNCELLEME
+    // GÜN DURUMU GÜNCELLEME
     async function gunDurumGuncelle(acikMi) {
       if (!acikMi) {
         if (!confirm("Günü kapatmak istediğinize emin misiniz?")) return;
@@ -376,7 +414,6 @@
         });
         const data = await res.json();
         if (data.success) {
-          // Sayfayı yenileyerek yeni günün sıfırlanmış hasılatını ve temiz ekranını getir
           window.location.reload();
         }
       } catch (err) {
@@ -415,11 +452,22 @@
         kart.classList.add('done');
         const eylem = document.getElementById('eylem-' + data.id);
         if (eylem) eylem.innerHTML = '<span style="color: #10b981; font-weight: 700; font-size: 13px;">✓ Tamamlandı</span>';
+
+        // Bekleyen sayısını 1 düşür
+        const bekleyenEl = document.getElementById('bekleyenSiparisDeger');
+        if (bekleyenEl) {
+          let b = parseInt(bekleyenEl.innerText) || 0;
+          bekleyenEl.innerText = Math.max(0, b - 1);
+        }
       }
     });
 
-    // YENİ SİPARİŞ DÜŞTÜĞÜNDE
+    // YENİ SİPARİŞ DÜŞTÜĞÜNDE (SES ÇALDIRMA BURADA TETİKLENİYOR)
     socket.on('kasa_yeni_siparis', (s) => {
+      // 1. Zili Çal!
+      sesCal();
+
+      // 2. Yeni Kartı Ekrana Ekle
       const container = document.getElementById('siparislerKonteyner');
       const kart = document.createElement('div');
       kart.className = 'order-card';
@@ -445,8 +493,11 @@
       `;
       container.prepend(kart);
       
+      // 3. Sayaçları ve Hasılatı Canlı Artır
       const hasilatEl = document.getElementById('hasilatDeger');
       const toplamEl = document.getElementById('toplamSiparisDeger');
+      const bekleyenEl = document.getElementById('bekleyenSiparisDeger');
+
       if (hasilatEl) {
         let eski = parseFloat(hasilatEl.innerText.replace('₺', '').trim()) || 0;
         hasilatEl.innerText = (eski + parseFloat(s.fiyat)).toFixed(2) + ' ₺';
@@ -454,6 +505,10 @@
       if (toplamEl) {
         let eskiAdet = parseInt(toplamEl.innerText) || 0;
         toplamEl.innerText = eskiAdet + 1;
+      }
+      if (bekleyenEl) {
+        let eskiBekleyen = parseInt(bekleyenEl.innerText) || 0;
+        bekleyenEl.innerText = eskiBekleyen + 1;
       }
     });
   </script>
