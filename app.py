@@ -52,7 +52,7 @@ class Siparis(db.Model):
 
 class Urun(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    kategori = db.Column(db.String(30), nullable=False)  # hamur, cikolata, meyve, susleme
+    kategori = db.Column(db.String(30), nullable=False)
     ad = db.Column(db.String(100), nullable=False)
     aktif = db.Column(db.Boolean, default=True)
 
@@ -75,6 +75,10 @@ def ayar_getir(anahtar):
         return VARSAYILAN_FIYATLAR
     if anahtar == 'gunluk_durum':
         return {"acik": True, "mesaj": "Siparişler açık"}
+    if anahtar == 'gun_baslangic':
+        # Hiç gün başlatılmamışsa bugünün 00:00'ı baz alınır
+        bugun_baslangic = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        return bugun_baslangic.strftime("%Y-%m-%d %H:%M:%S")
     return None
 
 def ayar_kaydet(anahtar, deger):
@@ -87,26 +91,21 @@ def ayar_kaydet(anahtar, deger):
         ayar.deger = deger_str
     db.session.commit()
 
-# Başlangıç ürünlerini otomatik ekleme
 def varsayilan_urunleri_yukle():
     if Urun.query.count() == 0:
         varsayilanlar = [
-            # Hamur
             ("hamur", "Klasik Çıtır"),
             ("hamur", "Kakaolu Hamur"),
-            # Çikolata
             ("cikolata", "Sütlü Çikolata"),
             ("cikolata", "Beyaz Çikolata"),
             ("cikolata", "Bitter Çikolata"),
             ("cikolata", "Karamel Sosu"),
             ("cikolata", "Antep Fıstık Ezmesi"),
-            # Meyve
             ("meyve", "Çilek 🍓"),
             ("meyve", "Muz 🍌"),
             ("meyve", "Kivi 🥝"),
             ("meyve", "Yaban Mersini 🫐"),
             ("meyve", "Ananas 🍍"),
-            # Süsleme
             ("susleme", "Fındık"),
             ("susleme", "Antep Fıstığı"),
             ("susleme", "Hindistan Cevizi"),
@@ -163,14 +162,22 @@ def kasa():
 
     fiyatlar = ayar_getir('fiyatlar')
     gunluk_durum = ayar_getir('gunluk_durum')
+    gun_baslangic_str = ayar_getir('gun_baslangic')
     
-    tum_db_siparisler = Siparis.query.order_by(Siparis.id.desc()).all()
-    siparisler = [s.to_dict() for s in tum_db_siparisler]
+    try:
+        gun_baslangic_dt = datetime.strptime(gun_baslangic_str, "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        gun_baslangic_dt = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # SADECE YENİ GÜN BAŞLATILDIĞI ANDAN İTİBAREN OLAN SİPARİŞLERİ AL
+    gunluk_siparisler = Siparis.query.filter(Siparis.tarih >= gun_baslangic_dt).order_by(Siparis.id.desc()).all()
+    siparisler = [s.to_dict() for s in gunluk_siparisler]
     tum_urunler = Urun.query.order_by(Urun.id.asc()).all()
 
-    toplam_hasilat = sum(s.fiyat for s in tum_db_siparisler)
-    toplam_adet = len(tum_db_siparisler)
-    bekleyen_adet = len([s for s in tum_db_siparisler if s.durum != 'Tamamlandı'])
+    # Hasılat ve adetleri SADECE bugüne göre hesapla
+    toplam_hasilat = sum(s.fiyat for s in gunluk_siparisler)
+    toplam_adet = len(gunluk_siparisler)
+    bekleyen_adet = len([s for s in gunluk_siparisler if s.durum != 'Tamamlandı'])
 
     return render_template('kasa.html',
                            siparisler=siparisler,
@@ -181,7 +188,7 @@ def kasa():
                            bekleyen_adet=bekleyen_adet,
                            urunler=tum_urunler)
 
-# Gün Sonu / Başlatma API
+# GÜN SONU / YENİ GÜN BAŞLATMA
 @app.route('/api/gun-durum', methods=['POST'])
 def api_gun_durum():
     if not session.get('kasa_yetkili'):
@@ -189,11 +196,18 @@ def api_gun_durum():
     
     data = request.get_json() or {}
     acik = data.get('acik', True)
+    
     yeni_durum = {
         "acik": acik,
         "mesaj": "Siparişler açık" if acik else "Bugünlük sipariş alımı durdurulmuştur."
     }
     ayar_kaydet('gunluk_durum', yeni_durum)
+
+    # EĞER YENİ GÜN BAŞLATILDIYSA SAYACI SIFIRLAMAK İÇİN BAŞLANGIÇ SAATİNİ ŞU AN YAP
+    if acik:
+        simdi = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ayar_kaydet('gun_baslangic', simdi)
+
     socketio.emit('gun_durumu_guncellendi', yeni_durum)
     return jsonify({"success": True, "durum": yeni_durum})
 
@@ -220,11 +234,9 @@ def api_urun_duzenle():
     data = request.get_json() or {}
     urun_id = data.get('id')
     yeni_ad = data.get('ad', '').strip()
-    
     urun = Urun.query.get(urun_id)
     if not urun:
         return jsonify({"success": False, "error": "Ürün bulunamadı"}), 404
-    
     if yeni_ad:
         urun.ad = yeni_ad
         db.session.commit()
@@ -236,8 +248,7 @@ def api_urun_sil():
     if not session.get('kasa_yetkili'):
         return jsonify({"success": False, "error": "Yetkisiz"}), 403
     data = request.get_json() or {}
-    urun_id = data.get('id')
-    urun = Urun.query.get(urun_id)
+    urun = Urun.query.get(data.get('id'))
     if urun:
         db.session.delete(urun)
         db.session.commit()
@@ -250,12 +261,12 @@ def siparisler_indir():
     tum_siparisler = Siparis.query.order_by(Siparis.id.asc()).all()
     si = io.StringIO()
     cw = csv.writer(si)
-    cw.writerow(['Siparis ID', 'Masa', 'Fiyat', 'Durum', 'Saat', 'Hamur', 'Cikolatalar', 'Meyveler', 'Suslemeler', 'Not'])
+    cw.writerow(['Siparis ID', 'Masa', 'Fiyat', 'Durum', 'Tarih Saat', 'Hamur', 'Cikolatalar', 'Meyveler', 'Suslemeler', 'Not'])
     for s in tum_siparisler:
         cw.writerow([s.id, s.masa, s.fiyat, s.durum, s.tarih.strftime("%d.%m.%Y %H:%M"), s.hamur, s.cikolatalar, s.meyveler, s.suslemeler, s.notlar])
     
     cikti = make_response(si.getvalue().encode('utf-8-sig'))
-    cikti.headers["Content-Disposition"] = "attachment; filename=waffle_siparisler.csv"
+    cikti.headers["Content-Disposition"] = "attachment; filename=waffle_tum_siparisler.csv"
     cikti.headers["Content-type"] = "text/csv; charset=utf-8"
     return cikti
 
