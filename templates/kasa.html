@@ -3,198 +3,246 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kasa & Mutfak Takip Paneli</title>
+  <title>Kasa & Mutfak Yönetim Paneli</title>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: #0f172a; color: #f8fafc; padding: 20px; }
-    
+    body { background: #0b0f19; color: #f1f5f9; padding: 24px; min-height: 100vh; }
+
+    /* Üst Bar */
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 15px;
+      gap: 16px;
       padding-bottom: 20px;
-      border-bottom: 1px solid #334155;
-      margin-bottom: 25px;
+      border-bottom: 1px solid #1e293b;
+      margin-bottom: 24px;
     }
-    .header-left h1 { font-size: 24px; color: #f59e0b; }
-    .status-badge {
+    .brand h1 { font-size: 24px; font-weight: 800; color: #f59e0b; display: flex; align-items: center; gap: 8px; }
+    .badge {
       display: inline-block;
-      padding: 4px 10px;
-      border-radius: 20px;
+      padding: 6px 14px;
+      border-radius: 9999px;
       font-size: 13px;
-      font-weight: 600;
-      margin-top: 5px;
+      font-weight: 700;
+      margin-top: 6px;
     }
-    .status-open { background: #065f46; color: #34d399; }
-    .status-closed { background: #7f1d1d; color: #f87171; }
+    .badge-open { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; }
+    .badge-closed { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444; }
 
-    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .header-btns { display: flex; gap: 10px; align-items: center; }
     .btn {
-      padding: 10px 16px;
+      padding: 10px 18px;
       border-radius: 8px;
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 700;
       border: none;
       cursor: pointer;
       text-decoration: none;
-      transition: opacity 0.2s;
+      transition: all 0.2s;
     }
-    .btn:hover { opacity: 0.9; }
     .btn-green { background: #10b981; color: #fff; }
     .btn-red { background: #ef4444; color: #fff; }
-    .btn-blue { background: #3b82f6; color: #fff; }
-    .btn-gray { background: #475569; color: #fff; }
+    .btn-blue { background: #2563eb; color: #fff; }
+    .btn-gray { background: #334155; color: #cbd5e1; }
+    .btn:hover { opacity: 0.88; transform: translateY(-1px); }
 
+    /* İstatistik / Hasılat Kartları */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: #131c31;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .stat-title { font-size: 13px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 28px; font-weight: 800; color: #f8fafc; }
+    .stat-value.highlight { color: #10b981; }
+
+    /* Sipariş Kartları Izgarası */
+    .orders-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #cbd5e1; }
     .orders-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 20px;
+      gap: 18px;
     }
     .order-card {
-      background: #1e293b;
-      border: 1px solid #334155;
+      background: #131c31;
+      border: 1px solid #1e293b;
       border-radius: 12px;
-      padding: 16px;
+      padding: 18px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+      gap: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      position: relative;
     }
+    .order-card.done { opacity: 0.6; border-color: #064e3b; }
     .order-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #334155;
-      padding-bottom: 8px;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 10px;
     }
-    .order-table { font-size: 18px; font-weight: 700; color: #f59e0b; }
-    .order-time { font-size: 13px; color: #94a3b8; }
-    .order-details { font-size: 14px; line-height: 1.5; color: #cbd5e1; }
-    .order-details div { margin-bottom: 4px; }
-    .order-details strong { color: #f8fafc; }
+    .table-tag { font-size: 20px; font-weight: 800; color: #f59e0b; }
+    .order-meta { font-size: 13px; color: #64748b; font-weight: 600; }
+
+    .order-body { font-size: 14px; line-height: 1.6; color: #cbd5e1; }
+    .order-body div { margin-bottom: 5px; }
+    .order-body strong { color: #f1f5f9; }
+    .order-note { background: #1e293b; padding: 6px 10px; border-radius: 6px; font-style: italic; color: #fbbf24; margin-top: 8px; }
+
     .order-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border-top: 1px solid #1e293b;
+      padding-top: 12px;
       margin-top: auto;
-      padding-top: 10px;
-      border-top: 1px solid #334155;
     }
-    .order-price { font-size: 18px; font-weight: 700; color: #10b981; }
-    .order-actions { display: flex; gap: 6px; }
-    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+    .order-price { font-size: 20px; font-weight: 800; color: #10b981; }
   </style>
 </head>
 <body>
 
   <header>
-    <div class="header-left">
-      <h1>🧇 Waffle Kasa & Mutfak Paneli</h1>
-      <div id="durumGosterge">
+    <div class="brand">
+      <h1>🧇 Waffle Kasa Paneli</h1>
+      <div id="durumKapsayici">
         {% if gunluk_durum.acik %}
-          <span class="status-badge status-open">● Sipariş Alımı Açık</span>
+          <span class="badge badge-open">● Sipariş Alımı AÇIK</span>
         {% else %}
-          <span class="status-badge status-closed">● Gün Sonu Yapıldı (Kapalı)</span>
+          <span class="badge badge-closed">● Gün Sonu Yapıldı (KAPALI)</span>
         {% endif %}
       </div>
     </div>
 
-    <div class="header-actions">
-      <!-- Gün Durumu Butonları -->
-      <button id="btnGunSonu" class="btn btn-red" onclick="gunDurumAyarla(false)" style="{% if not gunluk_durum.acik %}display:none;{% endif %}">
+    <div class="header-btns">
+      <button id="btnGunSonu" class="btn btn-red" onclick="gunDurumGuncelle(false)" style="{% if not gunluk_durum.acik %}display:none;{% endif %}">
         🛑 Gün Sonu Yap
       </button>
-      <button id="btnGunBaslat" class="btn btn-green" onclick="gunDurumAyarla(true)" style="{% if gunluk_durum.acik %}display:none;{% endif %}">
+      <button id="btnGunBaslat" class="btn btn-green" onclick="gunDurumGuncelle(true)" style="{% if gunluk_durum.acik %}display:none;{% endif %}">
         🟢 Yeni Gün Başlat
       </button>
-
       <a href="/admin/siparisler-indir" class="btn btn-blue">📥 Excel İndir</a>
       <a href="/kasa-cikis" class="btn btn-gray">🔒 Çıkış</a>
     </div>
   </header>
 
-  <main>
-    <div class="orders-grid" id="siparislerKonteyner">
-      {% for s in siparisler %}
-      <div class="order-card" id="siparis-{{ s.id }}">
-        <div class="order-header">
-          <span class="order-table">Masa {{ s.masa }}</span>
-          <span class="order-time">#{{ s.id }} | {{ s.tarih }}</span>
-        </div>
-        <div class="order-details">
-          <div><strong>Hamur:</strong> {{ s.hamur or 'Belirtilmedi' }}</div>
-          <div><strong>Çikolatalar:</strong> {{ s.cikolatalar | join(', ') if s.cikolatalar else 'Yok' }}</div>
-          <div><strong>Meyveler:</strong> {{ s.meyveler | join(', ') if s.meyveler else 'Yok' }}</div>
-          <div><strong>Süslemeler:</strong> {{ s.suslemeler | join(', ') if s.suslemeler else 'Yok' }}</div>
-          {% if s.notlar %}
-          <div><strong>Not:</strong> <em>{{ s.notlar }}</em></div>
+  <!-- Hasılat ve Sayaçlar -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-title">Günlük Hasılat</div>
+      <div class="stat-value highlight" id="hasilatDeger">{{ "%.2f"|format(toplam_hasilat) }} ₺</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-title">Toplam Sipariş</div>
+      <div class="stat-value" id="toplamSiparisDeger">{{ toplam_adet }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-title">Bekleyen / Hazırlanan</div>
+      <div class="stat-value" id="bekleyenSiparisDeger" style="color: #f59e0b;">{{ bekleyen_adet }}</div>
+    </div>
+  </div>
+
+  <div class="orders-title">Gelen Siparişler</div>
+
+  <main class="orders-grid" id="siparislerKonteyner">
+    {% for s in siparisler %}
+    <div class="order-card {% if s.durum == 'Tamamlandı' %}done{% endif %}" id="siparis-{{ s.id }}">
+      <div class="order-header">
+        <span class="table-tag">Masa {{ s.masa }}</span>
+        <span class="order-meta">#{{ s.id }} | {{ s.tarih }}</span>
+      </div>
+      <div class="order-body">
+        <div><strong>Hamur:</strong> {{ s.hamur or 'Belirtilmedi' }}</div>
+        <div><strong>Çikolatalar:</strong> {{ s.cikolatalar | join(', ') if s.cikolatalar else 'Yok' }}</div>
+        <div><strong>Meyveler:</strong> {{ s.meyveler | join(', ') if s.meyveler else 'Yok' }}</div>
+        <div><strong>Süslemeler:</strong> {{ s.suslemeler | join(', ') if s.suslemeler else 'Yok' }}</div>
+        {% if s.notlar %}
+        <div class="order-note"><strong>Not:</strong> {{ s.notlar }}</div>
+        {% endif %}
+      </div>
+      <div class="order-footer">
+        <span class="order-price">{{ s.fiyat }} ₺</span>
+        <div id="eylem-{{ s.id }}">
+          {% if s.durum != 'Tamamlandı' %}
+            <button class="btn btn-green" style="padding: 6px 12px; font-size: 13px;" onclick="siparisTamamla({{ s.id }})">Tamamla</button>
+          {% else %}
+            <span style="color: #10b981; font-weight: 700; font-size: 13px;">✓ Tamamlandı</span>
           {% endif %}
         </div>
-        <div class="order-footer">
-          <span class="order-price">{{ s.fiyat }} ₺</span>
-          <div class="order-actions">
-            {% if s.durum != 'Tamamlandı' %}
-              <button class="btn btn-green btn-sm" onclick="durumDegistir({{ s.id }}, 'Tamamlandı')">Tamamla</button>
-            {% else %}
-              <span style="font-size: 12px; color: #10b981; font-weight: 600;">✓ Tamamlandı</span>
-            {% endif %}
-          </div>
-        </div>
       </div>
-      {% endfor %}
     </div>
+    {% endfor %}
   </main>
 
   <script>
-    // Socket.IO Bağlantısı
     const socket = io();
 
-    socket.on('connect', () => {
-      console.log('Socket bağlantısı sağlandı.');
-    });
-
-    // 1. GÜN SONU / YENİ GÜN BAŞLAT
-    function gunDurumAyarla(acikMi) {
-      const mesaj = acikMi ? "Siparişler açık" : "Bugünlük sipariş alımı durdurulmuştur.";
-      socket.emit('gun_durum_degistir', { acik: acikMi, mesaj: mesaj });
+    // GÜN DURUMU GÜNCELLEME (HTTP Fetch Garantili)
+    async function gunDurumGuncelle(acikMi) {
+      try {
+        const res = await fetch('/api/gun-durum', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ acik: acikMi })
+        });
+        const data = await res.json();
+        if (data.success) {
+          ekranDurumunuAyarla(data.durum.acik);
+        }
+      } catch (err) {
+        alert("Bağlantı hatası oluştu: " + err);
+      }
     }
 
-    // Sunucudan gün durumu güncellemesi geldiğinde butonları ve rozeti değiştir
-    socket.on('gun_durumu_guncellendi', (data) => {
-      const gosterge = document.getElementById('durumGosterge');
+    function ekranDurumunuAyarla(acik) {
+      const gosterge = document.getElementById('durumKapsayici');
       const btnSonu = document.getElementById('btnGunSonu');
       const btnBaslat = document.getElementById('btnGunBaslat');
 
-      if (data.acik) {
-        gosterge.innerHTML = '<span class="status-badge status-open">● Sipariş Alımı Açık</span>';
+      if (acik) {
+        gosterge.innerHTML = '<span class="badge badge-open">● Sipariş Alımı AÇIK</span>';
         btnSonu.style.display = 'inline-block';
         btnBaslat.style.display = 'none';
       } else {
-        gosterge.innerHTML = '<span class="status-badge status-closed">● Gün Sonu Yapıldı (Kapalı)</span>';
+        gosterge.innerHTML = '<span class="badge badge-closed">● Gün Sonu Yapıldı (KAPALI)</span>';
         btnSonu.style.display = 'none';
         btnBaslat.style.display = 'inline-block';
       }
+    }
+
+    socket.on('gun_durumu_guncellendi', (durum) => {
+      ekranDurumunuAyarla(durum.acik);
     });
 
-    // 2. SİPARİŞ DURUMU GÜNCELLE (TAMAMLA)
-    function durumDegistir(id, yeniDurum) {
-      socket.emit('siparis_durum_guncelle', { id: id, durum: yeniDurum });
+    // SİPARİŞİ TAMAMLA
+    function siparisTamamla(id) {
+      socket.emit('siparis_durum_guncelle', { id: id, durum: 'Tamamlandı' });
     }
 
     socket.on('siparis_guncellendi', (data) => {
       const kart = document.getElementById('siparis-' + data.id);
       if (kart && data.durum === 'Tamamlandı') {
-        const actionArea = kart.querySelector('.order-actions');
-        if (actionArea) {
-          actionArea.innerHTML = '<span style="font-size: 12px; color: #10b981; font-weight: 600;">✓ Tamamlandı</span>';
-        }
+        kart.classList.add('done');
+        const eylem = document.getElementById('eylem-' + data.id);
+        if (eylem) eylem.innerHTML = '<span style="color: #10b981; font-weight: 700; font-size: 13px;">✓ Tamamlandı</span>';
       }
     });
 
-    // 3. YENİ SİPARİŞ GELDİĞİNDE EKRANA KART EKLE
+    // YENİ SİPARİŞ DÜŞTÜĞÜNDE
     socket.on('kasa_yeni_siparis', (s) => {
       const container = document.getElementById('siparislerKonteyner');
       const kart = document.createElement('div');
@@ -202,24 +250,36 @@
       kart.id = 'siparis-' + s.id;
       kart.innerHTML = `
         <div class="order-header">
-          <span class="order-table">Masa ${s.masa}</span>
-          <span class="order-time">#${s.id} | ${s.tarih}</span>
+          <span class="table-tag">Masa ${s.masa}</span>
+          <span class="order-meta">#${s.id} | ${s.tarih}</span>
         </div>
-        <div class="order-details">
+        <div class="order-body">
           <div><strong>Hamur:</strong> ${s.hamur || 'Belirtilmedi'}</div>
           <div><strong>Çikolatalar:</strong> ${(s.cikolatalar || []).join(', ') || 'Yok'}</div>
           <div><strong>Meyveler:</strong> ${(s.meyveler || []).join(', ') || 'Yok'}</div>
           <div><strong>Süslemeler:</strong> ${(s.suslemeler || []).join(', ') || 'Yok'}</div>
-          ${s.notlar ? `<div><strong>Not:</strong> <em>${s.notlar}</em></div>` : ''}
+          ${s.notlar ? `<div class="order-note"><strong>Not:</strong> ${s.notlar}</div>` : ''}
         </div>
         <div class="order-footer">
           <span class="order-price">${s.fiyat} ₺</span>
-          <div class="order-actions">
-            <button class="btn btn-green btn-sm" onclick="durumDegistir(${s.id}, 'Tamamlandı')">Tamamla</button>
+          <div id="eylem-${s.id}">
+            <button class="btn btn-green" style="padding: 6px 12px; font-size: 13px;" onclick="siparisTamamla(${s.id})">Tamamla</button>
           </div>
         </div>
       `;
       container.prepend(kart);
+      
+      // Hasılatı ve adetleri hemen yukarı çek
+      const hasilatEl = document.getElementById('hasilatDeger');
+      const toplamEl = document.getElementById('toplamSiparisDeger');
+      if (hasilatEl) {
+        let eski = parseFloat(hasilatEl.innerText.replace('₺', '').trim()) || 0;
+        hasilatEl.innerText = (eski + parseFloat(s.fiyat)).toFixed(2) + ' ₺';
+      }
+      if (toplamEl) {
+        let eskiAdet = parseInt(toplamEl.innerText) || 0;
+        toplamEl.innerText = eskiAdet + 1;
+      }
     });
   </script>
 </body>
