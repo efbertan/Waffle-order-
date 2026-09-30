@@ -78,7 +78,7 @@
       <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Canlı Akış</span>
     </h2>
     <div class="orders-grid" id="ordersGrid">
-      {% for s in siparisler reversed %}
+      {% for s in siparisler | reverse %}
         <div class="order-card {% if s.durum == 'Teslim Edildi' %}done{% endif %}" id="kasa-order-{{ s.id }}">
           <div class="order-header">
             <span class="table-tag">Masa {{ s.masa }}</span>
