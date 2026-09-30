@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kasa & POS Yönetim Paneli</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #0b1329; margin: 0; padding: 24px; color: #f8fafc; }
+
+    .dashboard-grid { display: grid; grid-template-columns: 320px 1fr; gap: 24px; }
+
+    /* Sol Panel */
+    .sidebar { background: #16203a; border-radius: 14px; padding: 20px; border: 1px solid #1e293b; height: fit-content; }
+    .kpi-card { background: #0f172a; border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155; }
+    .kpi-title { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-value { font-size: 26px; font-weight: bold; color: #38bdf8; margin-top: 4px; }
+    .kpi-value.green { color: #4ade80; }
+
+    /* Fiyat Düzenleme */
+    .price-input-group { margin-bottom: 12px; }
+    .price-input-group label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+    .price-input-group input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 8px; color: white; font-weight: bold; }
+
+    .btn-save { width: 100%; background: #3b82f6; color: white; border: none; border-radius: 6px; padding: 10px; font-weight: bold; cursor: pointer; margin-top: 8px; }
+    .btn-save:hover { background: #2563eb; }
+
+    .btn-end-day { width: 100%; background: #ef4444; color: white; border: none; border-radius: 6px; padding: 12px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+    .btn-end-day:hover { background: #dc2626; }
+    .btn-start-day { width: 100%; background: #10b981; color: white; border: none; border-radius: 6px; padding: 12px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+
+    /* Sağ Panel (Siparişler) */
+    .orders-area { display: flex; flex-direction: column; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 20px; }
+    .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .order-card { background: #16203a; border-radius: 12px; padding: 16px; border: 1px solid #334155; position: relative; }
+    .order-card.completed { opacity: 0.35; border-color: #22c55e; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 10px; }
+    .table-badge { background: #f59e0b; color: #000; font-weight: bold; padding: 4px 10px; border-radius: 6px; font-size: 14px; }
+    .price-tag { font-size: 16px; font-weight: bold; color: #4ade80; }
+    .detail-item { font-size: 13px; margin-bottom: 4px; line-height: 1.4; }
+    .detail-item strong { color: #94a3b8; }
+    .note-box { background: #0f172a; border-left: 3px solid #38bdf8; padding: 6px; margin-top: 8px; border-radius: 4px; font-size: 12px; }
+
+    .action-btn { width: 100%; margin-top: 12px; padding: 9px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; background: #22c55e; color: #052e16; }
+    .action-btn.done { background: #475569; color: #94a3b8; cursor: default; }
+
+    /* Modal (Z Raporu) */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; }
+    .modal-box { background: #1e293b; border-radius: 16px; padding: 28px; width: 90%; max-width: 440px; text-align: center; border: 2px solid #38bdf8; }
+    .modal-box h2 { margin: 0 0 16px 0; color: #38bdf8; }
+    .z-report-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #334155; font-size: 15px; }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-grid">
+    <!-- Sol: Kasa & Fiyat Kontrol -->
+    <div class="sidebar">
+      <div class="kpi-card">
+        <div class="kpi-title">Toplam Günlük Ciro</div>
+        <div class="kpi-value green"><span id="hasilatDisplay">{{ gunluk_durum.toplam_hasilat }}</span> ₺</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Teslim Edilen Sipariş</div>
+        <div class="kpi-value"><span id="adetDisplay">{{ gunluk_durum.tamamlanan_siparis_sayisi }}</span> Adet</div>
+      </div>
+
+      <h3 style="font-size: 15px; margin: 18px 0 10px; border-top: 1px solid #334155; padding-top: 14px;">🏷️ Menü Fiyat Ayarları</h3>
+      <form id="priceForm">
+        <div class="price-input-group">
+          <label>Taban Waffle (Hamur+1 Sos) ₺</label>
+          <input type="number" id="p_taban" value="{{ fiyatlar.taban_fiyat }}">
+        </div>
+        <div class="price-input-group">
+          <label>Ekstra Çikolata ₺</label>
+          <input type="number" id="p_cikolata" value="{{ fiyatlar.ekstra_cikolata }}">
+        </div>
+        <div class="price-input-group">
+          <label>Ekstra Meyve (Birim) ₺</label>
+          <input type="number" id="p_meyve" value="{{ fiyatlar.ekstra_meyve }}">
+        </div>
+        <div class="price-input-group">
+          <label>Ekstra Süsleme (Birim) ₺</label>
+          <input type="number" id="p_susleme" value="{{ fiyatlar.ekstra_susleme }}">
+        </div>
+        <button type="submit" class="btn-save">Fiyatları Güncelle</button>
+      </form>
+
+      <div id="dayControl">
+        {% if gunluk_durum.gun_acik %}
+          <button class="btn-end-day" onclick="gunBitir()">🛑 Günü Bitir (Z Raporu Al)</button>
+        {% else %}
+          <button class="btn-start-day" onclick="gunBaslat()">🚀 Yeni Günü Başlat</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Sağ: Sipariş Kartları -->
+    <div class="orders-area">
+      <div class="top-bar">
+        <h1 style="margin:0; font-size: 22px; color: #f59e0b;">🔔 Mutfak & Kasa Sipariş Akışı</h1>
+        <div id="dayStatusBadge" style="font-size: 13px; font-weight: bold; color: {% if gunluk_durum.gun_acik %}#4ade80{% else %}#f87171{% endif %};">
+          ● {% if gunluk_durum.gun_acik %}KASA AÇIK{% else %}KASA KAPALI{% endif %}
+        </div>
+      </div>
+
+      <div class="orders-grid" id="ordersContainer">
+        {% for s in siparisler %}
+          <div class="order-card {% if s.durum == 'Teslim Edildi' %}completed{% endif %}" id="card-{{ s.id }}">
+            <div class="card-header">
+              <span class="table-badge">Masa {{ s.masa }}</span>
+              <span class="price-tag">{{ s.tutar }} ₺</span>
+            </div>
+            <div class="detail-item"><strong>Hamur:</strong> {{ s.hamur }}</div>
+            <div class="detail-item"><strong>Çikolatalar:</strong> {{ s.cikolatalar | join(', ') }}</div>
+            <div class="detail-item"><strong>Meyveler:</strong> {{ s.meyveler | join(', ') }}</div>
+            <div class="detail-item"><strong>Süslemeler:</strong> {{ s.suslemeler | join(', ') }}</div>
+            {% if s.not %}
+              <div class="note-box"><strong>Not:</strong> {{ s.not }}</div>
+            {% endif %}
+
+            {% if s.durum == 'Teslim Edildi' %}
+              <button class="action-btn done" disabled>Teslim Edildi</button>
+            {% else %}
+              <button class="action-btn" onclick="tamamla({{ s.id }})">Servis Edildi Olarak İşaretle</button>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Z Raporu Modalı -->
+  <div class="modal-overlay" id="zReportModal">
+    <div class="modal-box">
+      <h2>📊 Gün Sonu Z Raporu</h2>
+      <div class="z-report-item">
+        <span>Kapanış Zamanı:</span>
+        <strong id="zTime">-</strong>
+      </div>
+      <div class="z-report-item">
+        <span>Toplam Sipariş:</span>
+        <strong id="zCount">0 Adet</strong>
+      </div>
+      <div class="z-report-item" style="font-size: 18px; color: #4ade80;">
+        <span>Toplam Hasılat:</span>
+        <strong id="zRevenue">0.00 ₺</strong>
+      </div>
+      <button class="btn-start-day" onclick="closeModalAndRefresh()" style="margin-top:20px;">Tamam & Kapat</button>
+    </div>
+  </div>
+
+<script>
+  const socket = io();
+
+  // Fiyat formunu kaydet
+  document.getElementById("priceForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const yeniFiyatlar = {
+      taban_fiyat: document.getElementById("p_taban").value,
+      ekstra_cikolata: document.getElementById("p_cikolata").value,
+      ekstra_meyve: document.getElementById("p_meyve").value,
+      ekstra_susleme: document.getElementById("p_susleme").value
+    };
+    socket.emit("fiyat_guncelle", yeniFiyatlar);
+    alert("✅ Fiyatlar başarıyla güncellendi ve menüye yansıdı!");
+  });
+
+  // Sipariş tamamlama
+  function tamamla(id) {
+    socket.emit("siparis_tamamla", { id: id });
+  }
+
+  // Günü Bitir
+  function gunBitir() {
+    if (confirm("Günü bitirmek istediğinize emin misiniz? Gün sonu raporu oluşturulacak.")) {
+      socket.emit("gun_durum_degistir", "bitir");
+    }
+  }
+
+  // Günü Başlat
+  function gunBaslat() {
+    if (confirm("Yeni günü başlatmak ve sayacı sıfırlamak istiyor musunuz?")) {
+      socket.emit("gun_durum_degistir", "baslat");
+    }
+  }
+
+  // Sipariş teslim edilince ciro göstergesini güncelle
+  socket.on("durum_guncellendi", function(data) {
+    const card = document.getElementById(`card-${data.id}`);
+    if (card) {
+      card.classList.add("completed");
+      const btn = card.querySelector(".action-btn");
+      btn.className = "action-btn done";
+      btn.disabled = true;
+      btn.innerText = "Teslim Edildi";
+    }
+    document.getElementById("hasilatDisplay").innerText = data.toplam_hasilat;
+    document.getElementById("adetDisplay").innerText = data.tamamlanan_adet;
+  });
+
+  // Yeni sipariş geldiğinde karta ekle
+  socket.on("kasaya_bildir", function(data) {
+    const container = document.getElementById("ordersContainer");
+    const card = document.createElement("div");
+    card.className = "order-card";
+    card.id = `card-${data.id}`;
+    card.innerHTML = `
+      <div class="card-header">
+        <span class="table-badge">Masa ${data.masa}</span>
+        <span class="price-tag">${data.tutar} ₺</span>
+      </div>
+      <div class="detail-item"><strong>Hamur:</strong> ${data.hamur}</div>
+      <div class="detail-item"><strong>Çikolatalar:</strong> ${data.cikolatalar.join(', ')}</div>
+      <div class="detail-item"><strong>Meyveler:</strong> ${data.meyveler.join(', ')}</div>
+      <div class="detail-item"><strong>Süslemeler:</strong> ${data.suslemeler.join(', ')}</div>
+      ${data.not ? `<div class="note-box"><strong>Not:</strong> ${data.not}</div>` : ""}
+      <button class="action-btn" onclick="tamamla(${data.id})">Servis Edildi Olarak İşaretle</button>
+    `;
+    container.prepend(card);
+  });
+
+  // Gün kapandığında modal göster
+  socket.on("gun_kapandi", function(ozet) {
+    document.getElementById("zTime").innerText = ozet.kapanis_zamani;
+    document.getElementById("zCount").innerText = ozet.toplam_siparis + " Adet";
+    document.getElementById("zRevenue").innerText = ozet.toplam_hasilat + " ₺";
+    document.getElementById("zReportModal").style.display = "flex";
+  });
+
+  function closeModalAndRefresh() {
+    location.reload();
+  }
+
+  socket.on("gun_basladi", function() {
+    location.reload();
+  });
+</script>
+
+</body>
+</html>
