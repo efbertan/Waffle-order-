@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Waffle POS - Kasa & Mutfak Paneli</title>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <a href="/kasa-cikis" style="text-decoration:none; background:#ef4444; color:#fff; padding:8px 14px; border-radius:8px; font-size:14px; font-weight:600;">🔒 Çıkış Yap</a>
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
@@ -69,6 +68,7 @@
   <div class="actions">
     <button class="btn btn-red" id="gunSonuBtn" onclick="gunDurum('bitir')" {% if not gunluk_durum.gun_acik %}style="display:none;"{% endif %}>Gün Sonu Yap</button>
     <button class="btn btn-green" id="gunBaslatBtn" onclick="gunDurum('baslat')" {% if gunluk_durum.gun_acik %}style="display:none;"{% endif %}>Yeni Gün Başlat</button>
+    <a href="/kasa-cikis" style="text-decoration:none; background:#ef4444; color:#fff; padding:8px 14px; border-radius:8px; font-size:14px; font-weight:600;">🔒 Çıkış Yap</a>
   </div>
 </div>
 
