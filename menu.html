@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Masa {{ masa_no }} - Waffle Sipariş</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #f8fafc; margin: 0; padding: 16px; color: #1e293b; }
+    .card { background: #ffffff; border-radius: 16px; padding: 20px; max-width: 480px; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .header { text-align: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 16px; }
+    .header h2 { margin: 0; color: #ea580c; }
+    .badge { display: inline-flex; align-items: center; background: #ffedd5; color: #c2410c; padding: 6px 14px; border-radius: 12px; font-weight: bold; font-size: 15px; margin-top: 6px; }
+
+    .masa-select { background: #fff; border: 1px solid #fdba74; color: #c2410c; font-weight: bold; font-size: 14px; border-radius: 6px; padding: 2px 6px; margin-left: 6px; outline: none; }
+
+    .active-orders-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 14px; margin-bottom: 18px; }
+    .active-orders-box h3 { margin: 0 0 10px 0; font-size: 15px; color: #b45309; display: flex; justify-content: space-between; }
+    .order-item { background: #ffffff; border: 1px solid #fef3c7; border-radius: 8px; padding: 10px; margin-bottom: 8px; font-size: 13px; line-height: 1.4; }
+    .order-status { display: inline-block; background: #fef08a; color: #854d0e; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+
+    .section-title { font-weight: bold; margin: 16px 0 8px; font-size: 14px; color: #475569; display: flex; justify-content: space-between; }
+    .price-hint { font-size: 12px; font-weight: normal; color: #ea580c; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    label { display: flex; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; cursor: pointer; font-size: 14px; }
+    input[type="checkbox"], input[type="radio"] { margin-right: 8px; accent-color: #ea580c; }
+    textarea { width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 14px; resize: none; margin-top: 6px; }
+
+    .price-bar { position: sticky; bottom: 0; background: #ffffff; padding: 12px; border-radius: 12px; border: 2px solid #ea580c; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+    .total-amount { font-size: 20px; font-weight: bold; color: #ea580c; }
+    button { background: #ea580c; color: white; border: none; border-radius: 8px; padding: 12px 20px; font-size: 15px; font-weight: bold; cursor: pointer; }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+    .closed-alert { display: none; background: #fee2e2; border: 1px solid #f87171; color: #991b1b; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="header">
+    <h2>🧇 Waffle Portalı</h2>
+    <div class="badge">
+      <span>Masa:</span>
+      <select id="currentMasa" class="masa-select" onchange="window.location.href='/?masa=' + this.value">
+        <option value="1" {% if masa_no == '1' %}selected{% endif %}>Masa 1</option>
+        <option value="2" {% if masa_no == '2' %}selected{% endif %}>Masa 2</option>
+        <option value="3" {% if masa_no == '3' %}selected{% endif %}>Masa 3</option>
+        <option value="4" {% if masa_no == '4' %}selected{% endif %}>Masa 4</option>
+        <option value="5" {% if masa_no == '5' %}selected{% endif %}>Masa 5</option>
+        <option value="6" {% if masa_no == '6' %}selected{% endif %}>Masa 6</option>
+        <option value="7" {% if masa_no == '7' %}selected{% endif %}>Masa 7</option>
+        <option value="8" {% if masa_no == '8' %}selected{% endif %}>Masa 8</option>
+        <option value="9" {% if masa_no == '9' %}selected{% endif %}>Masa 9</option>
+        <option value="10" {% if masa_no == '10' %}selected{% endif %}>Masa 10</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="closedAlert" class="closed-alert" {% if not gun_acik %}style="display:block;"{% endif %}>
+    🔒 Sipariş servisi şu an kapalıdır (Gün Sonu).
+  </div>
+
+  <div class="active-orders-box">
+    <h3>
+      <span>📋 Masanızın Siparişleri</span>
+      <span style="font-size: 12px; font-weight: normal; color: #64748b;">(Canlı)</span>
+    </h3>
+    <div id="tableOrdersContainer">
+      {% for s in aktif_siparisler %}
+        <div class="order-item" id="order-box-{{ s.id }}">
+          <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+            <strong>Sipariş #{{ s.id }} ({{ s.tutar }} ₺)</strong>
+            <span class="order-status">{{ s.durum }}</span>
+          </div>
+          <div>{{ s.hamur }} • {{ s.cikolatalar | join(', ') }}</div>
+          <div style="color: #64748b;">{{ s.meyveler | join(', ') }}</div>
+        </div>
+      {% endfor %}
+      {% if not aktif_siparisler %}
+        <p style="font-size: 13px; color: #94a3b8; margin: 0;" id="noOrderText">Bekleyen aktif siparişiniz yok.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <form id="orderForm">
+    <div class="section-title">
+      <span>1. Hamur Tabanı</span>
+      <span class="price-hint" id="tabanHint">Dahil: {{ fiyatlar.taban_fiyat }} ₺</span>
+    </div>
+    <div class="grid">
+      <label><input type="radio" name="hamur" value="Klasik Çıtır" checked> Klasik Çıtır</label>
+      <label><input type="radio" name="hamur" value="Kakaolu"> Kakaolu</label>
+    </div>
+
+    <div class="section-title">
+      <span>2. Çikolatalar</span>
+      <span class="price-hint">+{{ fiyatlar.ekstra_cikolata }} ₺ (1. Ücretsiz)</span>
+    </div>
+    <div class="grid">
+      <label><input type="checkbox" name="cikolata" value="Nutella" checked> Nutella</label>
+      <label><input type="checkbox" name="cikolata" value="Beyaz Çikolata"> Beyaz Çikolata</label>
+      <label><input type="checkbox" name="cikolata" value="Antep Fıstıklı"> Antep Fıstıklı</label>
+      <label><input type="checkbox" name="cikolata" value="Karamel"> Karamel</label>
+    </div>
+
+    <div class="section-title">
+      <span>3. Taze Meyveler</span>
+      <span class="price-hint" id="meyveHint">+{{ fiyatlar.ekstra_meyve }} ₺/adet</span>
+    </div>
+    <div class="grid">
+      <label><input type="checkbox" name="meyve" value="Çilek"> Çilek</label>
+      <label><input type="checkbox" name="meyve" value="Muz"> Muz</label>
+      <label><input type="checkbox" name="meyve" value="Kivi"> Kivi</label>
+      <label><input type="checkbox" name="meyve" value="Ananas"> Ananas</label>
+    </div>
+
+    <div class="section-title">
+      <span>4. Süslemeler</span>
+      <span class="price-hint" id="suslemeHint">+{{ fiyatlar.ekstra_susleme }} ₺/adet</span>
+    </div>
+    <div class="grid">
+      <label><input type="checkbox" name="susleme" value="Fındık Parçaları"> Fındık</label>
+      <label><input type="checkbox" name="susleme" value="Damla Çikolata"> Damla Çikolata</label>
+      <label><input type="checkbox" name="susleme" value="Hindistan Cevizi"> Hindistan Cevizi</label>
+      <label><input type="checkbox" name="susleme" value="Renkli Draje"> Renkli Draje</label>
+    </div>
+
+    <div class="section-title"><span>5. Not</span></div>
+    <textarea id="siparisNotu" rows="2" placeholder="Özel istekleriniz..."></textarea>
+
+    <div class="price-bar">
+      <div>
+        <div style="font-size: 12px; color: #64748b;">Toplam Tutar</div>
+        <div class="total-amount"><span id="liveTotal">{{ fiyatlar.taban_fiyat }}</span> ₺</div>
+      </div>
+      <button type="submit" id="submitBtn" {% if not gun_acik %}disabled{% endif %}>Siparişi Gönder</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  const socket = io();
+  const masaSelect = document.getElementById("currentMasa");
+
+  const form = document.getElementById("orderForm");
+  const liveTotal = document.getElementById("liveTotal");
+  const submitBtn = document.getElementById("submitBtn");
+  const closedAlert = document.getElementById("closedAlert");
+
+  let currentPrices = {
+    taban_fiyat: {{ fiyatlar.taban_fiyat }},
+    ekstra_cikolata: {{ fiyatlar.ekstra_cikolata }},
+    ekstra_meyve: {{ fiyatlar.ekstra_meyve }},
+    ekstra_susleme: {{ fiyatlar.ekstra_susleme }}
+  };
+
+  function hesapla() {
+    let total = currentPrices.taban_fiyat;
+    const cikolataSayisi = document.querySelectorAll('input[name="cikolata"]:checked').length;
+    if (cikolataSayisi > 1) {
+      total += (cikolataSayisi - 1) * currentPrices.ekstra_cikolata;
+    }
+    const meyveSayisi = document.querySelectorAll('input[name="meyve"]:checked').length;
+    total += meyveSayisi * currentPrices.ekstra_meyve;
+
+    const suslemeSayisi = document.querySelectorAll('input[name="susleme"]:checked').length;
+    total += suslemeSayisi * currentPrices.ekstra_susleme;
+
+    liveTotal.innerText = total.toFixed(0);
+    return total;
+  }
+
+  form.addEventListener("change", hesapla);
+
+  form.addEventListener("submit", function(e) {
+    e.preventDefault();
+    const tutar = hesapla();
+    const siparisData = {
+      masa: masaSelect.value,
+      hamur: document.querySelector('input[name="hamur"]:checked')?.value || "Klasik",
+      cikolatalar: Array.from(document.querySelectorAll('input[name="cikolata"]:checked')).map(el => el.value),
+      meyveler: Array.from(document.querySelectorAll('input[name="meyve"]:checked')).map(el => el.value),
+      suslemeler: Array.from(document.querySelectorAll('input[name="susleme"]:checked')).map(el => el.value),
+      not: document.getElementById("siparisNotu").value,
+      tutar: tutar
+    };
+
+    socket.emit("yeni_siparis", siparisData);
+    form.reset();
+    hesapla();
+  });
+
+  socket.on("masaya_yeni_siparis", function(data) {
+    if (String(data.masa) === String(masaSelect.value)) {
+      const emptyText = document.getElementById("noOrderText");
+      if (emptyText) emptyText.style.display = "none";
+
+      const item = document.createElement("div");
+      item.className = "order-item";
+      item.id = `order-box-${data.id}`;
+      item.innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+          <strong>Sipariş #${data.id} (${data.tutar} ₺)</strong>
+          <span class="order-status">Hazırlanıyor</span>
+        </div>
+        <div>${data.hamur} • ${data.cikolatalar.join(', ')}</div>
+        <div style="color: #64748b;">${data.meyveler.join(', ')}</div>
+      `;
+      document.getElementById("tableOrdersContainer").prepend(item);
+    }
+  });
+
+  socket.on("durum_guncellendi", function(data) {
+    const item = document.getElementById(`order-box-${data.id}`);
+    if (item) {
+      item.style.borderColor = "#86efac";
+      item.style.backgroundColor = "#f0fdf4";
+      const badge = item.querySelector(".order-status");
+      if (badge) {
+        badge.innerText = "Teslim Edildi ✅";
+        badge.style.backgroundColor = "#bbf7d0";
+        badge.style.color = "#15803d";
+      }
+    }
+  });
+
+  socket.on("fiyatlar_degisti", function(yeni) {
+    currentPrices = yeni;
+    document.getElementById("tabanHint").innerText = `Dahil: ${yeni.taban_fiyat} ₺`;
+    document.getElementById("meyveHint").innerText = `+${yeni.ekstra_meyve} ₺/adet`;
+    document.getElementById("suslemeHint").innerText = `+${yeni.ekstra_susleme} ₺/adet`;
+    hesapla();
+  });
+
+  socket.on("gun_kapandi", function() {
+    closedAlert.style.display = "block";
+    submitBtn.disabled = true;
+  });
+
+  socket.on("gun_basladi", function() {
+    closedAlert.style.display = "none";
+    submitBtn.disabled = false;
+    document.getElementById("tableOrdersContainer").innerHTML = '<p style="font-size: 13px; color: #94a3b8; margin: 0;" id="noOrderText">Bekleyen aktif siparişiniz yok.</p>';
+  });
+</script>
+
+</body>
+</html>
