@@ -9,7 +9,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: #0b0f19; color: #f1f5f9; padding: 24px; min-height: 100vh; }
 
-    /* Üst Bar */
     header {
       display: flex;
       justify-content: space-between;
@@ -20,7 +19,7 @@
       border-bottom: 1px solid #1e293b;
       margin-bottom: 24px;
     }
-    .brand h1 { font-size: 24px; font-weight: 800; color: #f59e0b; display: flex; align-items: center; gap: 8px; }
+    .brand h1 { font-size: 24px; font-weight: 800; color: #f59e0b; }
     .badge {
       display: inline-block;
       padding: 6px 14px;
@@ -32,9 +31,9 @@
     .badge-open { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; }
     .badge-closed { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444; }
 
-    .header-btns { display: flex; gap: 10px; align-items: center; }
+    .header-btns { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .btn {
-      padding: 10px 18px;
+      padding: 10px 16px;
       border-radius: 8px;
       font-size: 14px;
       font-weight: 700;
@@ -46,15 +45,16 @@
     .btn-green { background: #10b981; color: #fff; }
     .btn-red { background: #ef4444; color: #fff; }
     .btn-blue { background: #2563eb; color: #fff; }
+    .btn-purple { background: #8b5cf6; color: #fff; }
     .btn-gray { background: #334155; color: #cbd5e1; }
     .btn:hover { opacity: 0.88; transform: translateY(-1px); }
 
-    /* İstatistik / Hasılat Kartları */
+    /* İstatistik Kartları */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 16px;
-      margin-bottom: 28px;
+      margin-bottom: 24px;
     }
     .stat-card {
       background: #131c31;
@@ -65,11 +65,61 @@
       flex-direction: column;
       gap: 6px;
     }
-    .stat-title { font-size: 13px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-title { font-size: 13px; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
     .stat-value { font-size: 28px; font-weight: 800; color: #f8fafc; }
     .stat-value.highlight { color: #10b981; }
 
-    /* Sipariş Kartları Izgarası */
+    /* Ürün Yönetim Modalı/Paneli */
+    .menu-manager-card {
+      background: #131c31;
+      border: 1px solid #3b82f6;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 28px;
+      display: none;
+    }
+    .menu-manager-card h2 { font-size: 18px; color: #60a5fa; margin-bottom: 15px; }
+    .add-product-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .form-input, .form-select {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+    .form-input { flex: 1; min-width: 200px; }
+
+    .product-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+      max-height: 250px;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+    .product-item {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 10px 14px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .product-name-span { font-size: 14px; font-weight: 600; }
+    .product-kat-badge { font-size: 11px; background: #334155; padding: 2px 6px; border-radius: 4px; color: #94a3b8; }
+    .product-actions { display: flex; gap: 6px; }
+    .btn-icon { background: none; border: none; cursor: pointer; font-size: 15px; }
+
+    /* Sipariş Kartları */
     .orders-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #cbd5e1; }
     .orders-grid {
       display: grid;
@@ -85,7 +135,6 @@
       flex-direction: column;
       gap: 14px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      position: relative;
     }
     .order-card.done { opacity: 0.6; border-color: #064e3b; }
     .order-header {
@@ -97,12 +146,10 @@
     }
     .table-tag { font-size: 20px; font-weight: 800; color: #f59e0b; }
     .order-meta { font-size: 13px; color: #64748b; font-weight: 600; }
-
     .order-body { font-size: 14px; line-height: 1.6; color: #cbd5e1; }
     .order-body div { margin-bottom: 5px; }
     .order-body strong { color: #f1f5f9; }
     .order-note { background: #1e293b; padding: 6px 10px; border-radius: 6px; font-style: italic; color: #fbbf24; margin-top: 8px; }
-
     .order-footer {
       display: flex;
       justify-content: space-between;
@@ -129,6 +176,7 @@
     </div>
 
     <div class="header-btns">
+      <button class="btn btn-purple" onclick="toggleUrunPaneli()">⚙️ Ürünleri Yönet</button>
       <button id="btnGunSonu" class="btn btn-red" onclick="gunDurumGuncelle(false)" style="{% if not gunluk_durum.acik %}display:none;{% endif %}">
         🛑 Gün Sonu Yap
       </button>
@@ -140,7 +188,40 @@
     </div>
   </header>
 
-  <!-- Hasılat ve Sayaçlar -->
+  <!-- ÜRÜN & MENÜ YÖNETİMİ ALANI -->
+  <div class="menu-manager-card" id="urunYonetimPaneli">
+    <h2>🛠️ Menü & Malzeme Düzenleyici</h2>
+    
+    <!-- Yeni Ekleme Satırı -->
+    <div class="add-product-row">
+      <select id="yeniKategori" class="form-select">
+        <option value="hamur">Hamur</option>
+        <option value="cikolata">Çikolata</option>
+        <option value="meyve">Meyve</option>
+        <option value="susleme">Süsleme</option>
+      </select>
+      <input type="text" id="yeniUrunAd" class="form-input" placeholder="Yeni malzeme adı (örn: Lotus Kreması, Frambuaz)...">
+      <button class="btn btn-green" onclick="yeniUrunEkle()">+ Ürünü Ekle</button>
+    </div>
+
+    <!-- Mevcut Ürünler Listesi -->
+    <div class="product-list" id="urunListesiKonteyner">
+      {% for u in urunler %}
+      <div class="product-item" id="urun-item-{{ u.id }}">
+        <div>
+          <span class="product-kat-badge">{{ u.kategori|upper }}</span>
+          <span class="product-name-span" id="urun-ad-{{ u.id }}">{{ u.ad }}</span>
+        </div>
+        <div class="product-actions">
+          <button class="btn-icon" title="İsmi Değiştir" onclick="urunDuzenle({{ u.id }}, '{{ u.ad }}')">✏️</button>
+          <button class="btn-icon" title="Sil" onclick="urunSil({{ u.id }})">🗑️</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Hasılat Kartları -->
   <div class="stats-grid">
     <div class="stat-card">
       <div class="stat-title">Günlük Hasılat</div>
@@ -191,7 +272,95 @@
   <script>
     const socket = io();
 
-    // GÜN DURUMU GÜNCELLEME (HTTP Fetch Garantili)
+    // Ürün Paneli Aç/Kapa
+    function toggleUrunPaneli() {
+      const p = document.getElementById('urunYonetimPaneli');
+      p.style.display = p.style.display === 'block' ? 'none' : 'block';
+    }
+
+    // YENİ ÜRÜN EKLE
+    async function yeniUrunEkle() {
+      const kategori = document.getElementById('yeniKategori').value;
+      const adInput = document.getElementById('yeniUrunAd');
+      const ad = adInput.value.trim();
+      if (!ad) {
+        alert("Lütfen bir ürün adı yazın!");
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/urun-ekle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kategori, ad })
+        });
+        const d = await res.json();
+        if (d.success) {
+          const list = document.getElementById('urunListesiKonteyner');
+          const div = document.createElement('div');
+          div.className = 'product-item';
+          div.id = 'urun-item-' + d.urun.id;
+          div.innerHTML = `
+            <div>
+              <span class="product-kat-badge">${d.urun.kategori.toUpperCase()}</span>
+              <span class="product-name-span" id="urun-ad-${d.urun.id}">${d.urun.ad}</span>
+            </div>
+            <div class="product-actions">
+              <button class="btn-icon" title="İsmi Değiştir" onclick="urunDuzenle(${d.urun.id}, '${d.urun.ad}')">✏️</button>
+              <button class="btn-icon" title="Sil" onclick="urunSil(${d.urun.id})">🗑️</button>
+            </div>
+          `;
+          list.prepend(div);
+          adInput.value = '';
+          alert("Ürün menüye başarıyla eklendi!");
+        }
+      } catch (e) {
+        alert("Ürün eklenemedi: " + e);
+      }
+    }
+
+    // ÜRÜN İSMİNİ DÜZENLE
+    async function urunDuzenle(id, eskiAd) {
+      const yeniAd = prompt("Ürün için yeni ismi girin:", eskiAd);
+      if (!yeniAd || yeniAd.trim() === '' || yeniAd === eskiAd) return;
+
+      try {
+        const res = await fetch('/api/urun-duzenle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, ad: yeniAd.trim() })
+        });
+        const d = await res.json();
+        if (d.success) {
+          document.getElementById('urun-ad-' + id).innerText = d.urun.ad;
+          alert("Ürün ismi güncellendi!");
+        }
+      } catch (e) {
+        alert("Güncelleme başarısız: " + e);
+      }
+    }
+
+    // ÜRÜN SİL
+    async function urunSil(id) {
+      if (!confirm("Bu ürünü menüden tamamen kaldırmak istediğinize emin misiniz?")) return;
+
+      try {
+        const res = await fetch('/api/urun-sil', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const d = await res.json();
+        if (d.success) {
+          const el = document.getElementById('urun-item-' + id);
+          if (el) el.remove();
+        }
+      } catch (e) {
+        alert("Silme başarısız: " + e);
+      }
+    }
+
+    // GÜN DURUMU GÜNCELLEME
     async function gunDurumGuncelle(acikMi) {
       try {
         const res = await fetch('/api/gun-durum', {
@@ -204,7 +373,7 @@
           ekranDurumunuAyarla(data.durum.acik);
         }
       } catch (err) {
-        alert("Bağlantı hatası oluştu: " + err);
+        alert("Bağlantı hatası: " + err);
       }
     }
 
@@ -269,7 +438,6 @@
       `;
       container.prepend(kart);
       
-      // Hasılatı ve adetleri hemen yukarı çek
       const hasilatEl = document.getElementById('hasilatDeger');
       const toplamEl = document.getElementById('toplamSiparisDeger');
       if (hasilatEl) {
