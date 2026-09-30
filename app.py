@@ -50,6 +50,15 @@ class Siparis(db.Model):
             "tarih": self.tarih.strftime("%H:%M")
         }
 
+class Urun(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    kategori = db.Column(db.String(30), nullable=False)  # hamur, cikolata, meyve, susleme
+    ad = db.Column(db.String(100), nullable=False)
+    aktif = db.Column(db.Boolean, default=True)
+
+    def to_dict(self):
+        return {"id": self.id, "kategori": self.kategori, "ad": self.ad, "aktif": self.aktif}
+
 class Ayar(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     anahtar = db.Column(db.String(50), unique=True, nullable=False)
@@ -78,8 +87,40 @@ def ayar_kaydet(anahtar, deger):
         ayar.deger = deger_str
     db.session.commit()
 
+# Başlangıç ürünlerini otomatik ekleme
+def varsayilan_urunleri_yukle():
+    if Urun.query.count() == 0:
+        varsayilanlar = [
+            # Hamur
+            ("hamur", "Klasik Çıtır"),
+            ("hamur", "Kakaolu Hamur"),
+            # Çikolata
+            ("cikolata", "Sütlü Çikolata"),
+            ("cikolata", "Beyaz Çikolata"),
+            ("cikolata", "Bitter Çikolata"),
+            ("cikolata", "Karamel Sosu"),
+            ("cikolata", "Antep Fıstık Ezmesi"),
+            # Meyve
+            ("meyve", "Çilek 🍓"),
+            ("meyve", "Muz 🍌"),
+            ("meyve", "Kivi 🥝"),
+            ("meyve", "Yaban Mersini 🫐"),
+            ("meyve", "Ananas 🍍"),
+            # Süsleme
+            ("susleme", "Fındık"),
+            ("susleme", "Antep Fıstığı"),
+            ("susleme", "Hindistan Cevizi"),
+            ("susleme", "Renkli Draje"),
+            ("susleme", "Oreo Kırıntısı"),
+            ("susleme", "Pudra Şekeri")
+        ]
+        for kat, ad in varsayilanlar:
+            db.session.add(Urun(kategori=kat, ad=ad, aktif=True))
+        db.session.commit()
+
 with app.app_context():
     db.create_all()
+    varsayilan_urunleri_yukle()
 
 # --- 1. MÜŞTERİ MENÜ EKRANI ---
 @app.route('/')
@@ -87,7 +128,15 @@ def menu():
     masa = request.args.get('masa')
     fiyatlar = ayar_getir('fiyatlar')
     gunluk_durum = ayar_getir('gunluk_durum')
-    return render_template('menu.html', masa=masa, fiyatlar=fiyatlar, gunluk_durum=gunluk_durum)
+    urunler = Urun.query.filter_by(aktif=True).all()
+    
+    kategorize_urunler = {
+        "hamur": [u for u in urunler if u.kategori == 'hamur'],
+        "cikolata": [u for u in urunler if u.kategori == 'cikolata'],
+        "meyve": [u for u in urunler if u.kategori == 'meyve'],
+        "susleme": [u for u in urunler if u.kategori == 'susleme']
+    }
+    return render_template('menu.html', masa=masa, fiyatlar=fiyatlar, gunluk_durum=gunluk_durum, urunler=kategorize_urunler)
 
 # --- 2. KASA & ŞİFRE ROTALARI ---
 @app.route('/kasa-giris', methods=['GET', 'POST'])
@@ -117,8 +166,8 @@ def kasa():
     
     tum_db_siparisler = Siparis.query.order_by(Siparis.id.desc()).all()
     siparisler = [s.to_dict() for s in tum_db_siparisler]
+    tum_urunler = Urun.query.order_by(Urun.id.asc()).all()
 
-    # Günlük Hasılat ve İstatistikler
     toplam_hasilat = sum(s.fiyat for s in tum_db_siparisler)
     toplam_adet = len(tum_db_siparisler)
     bekleyen_adet = len([s for s in tum_db_siparisler if s.durum != 'Tamamlandı'])
@@ -129,9 +178,10 @@ def kasa():
                            gunluk_durum=gunluk_durum,
                            toplam_hasilat=toplam_hasilat,
                            toplam_adet=toplam_adet,
-                           bekleyen_adet=bekleyen_adet)
+                           bekleyen_adet=bekleyen_adet,
+                           urunler=tum_urunler)
 
-# Gün Sonu / Başlatma için Garanti HTTP Rotası (Socket takılsa bile çalışır)
+# Gün Sonu / Başlatma API
 @app.route('/api/gun-durum', methods=['POST'])
 def api_gun_durum():
     if not session.get('kasa_yetkili'):
@@ -146,6 +196,53 @@ def api_gun_durum():
     ayar_kaydet('gunluk_durum', yeni_durum)
     socketio.emit('gun_durumu_guncellendi', yeni_durum)
     return jsonify({"success": True, "durum": yeni_durum})
+
+# --- ÜRÜN YÖNETİMİ API'LERİ ---
+@app.route('/api/urun-ekle', methods=['POST'])
+def api_urun_ekle():
+    if not session.get('kasa_yetkili'):
+        return jsonify({"success": False, "error": "Yetkisiz"}), 403
+    data = request.get_json() or {}
+    kategori = data.get('kategori')
+    ad = data.get('ad', '').strip()
+    if not kategori or not ad:
+        return jsonify({"success": False, "error": "Kategori ve isim zorunludur"}), 400
+    
+    yeni_urun = Urun(kategori=kategori, ad=ad, aktif=True)
+    db.session.add(yeni_urun)
+    db.session.commit()
+    return jsonify({"success": True, "urun": yeni_urun.to_dict()})
+
+@app.route('/api/urun-duzenle', methods=['POST'])
+def api_urun_duzenle():
+    if not session.get('kasa_yetkili'):
+        return jsonify({"success": False, "error": "Yetkisiz"}), 403
+    data = request.get_json() or {}
+    urun_id = data.get('id')
+    yeni_ad = data.get('ad', '').strip()
+    
+    urun = Urun.query.get(urun_id)
+    if not urun:
+        return jsonify({"success": False, "error": "Ürün bulunamadı"}), 404
+    
+    if yeni_ad:
+        urun.ad = yeni_ad
+        db.session.commit()
+        return jsonify({"success": True, "urun": urun.to_dict()})
+    return jsonify({"success": False, "error": "Geçersiz isim"}), 400
+
+@app.route('/api/urun-sil', methods=['POST'])
+def api_urun_sil():
+    if not session.get('kasa_yetkili'):
+        return jsonify({"success": False, "error": "Yetkisiz"}), 403
+    data = request.get_json() or {}
+    urun_id = data.get('id')
+    urun = Urun.query.get(urun_id)
+    if urun:
+        db.session.delete(urun)
+        db.session.commit()
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "Ürün bulunamadı"}), 404
 
 # --- 3. EXCEL / CSV İNDİRME ---
 @app.route('/admin/siparisler-indir')
