@@ -104,34 +104,27 @@ def fiyat_guncelle(yeni_fiyatlar):
     })
     emit('fiyatlar_degisti', fiyatlar, broadcast=True)
 
-function gunDurum(action) {
-    const mesaj = action === 'bitir' ? "Günü sonlandırmak istiyor musunuz?" : "Yeni gün başlatılsın mı?";
-    if (confirm(mesaj)) {
-      socket.emit("gun_durum_degistir", action);
-    }
-  }
-
-  socket.on("gun_kapandi", function(ozet) {
-    const btnBitir = document.getElementById("gunSonuBtn");
-    const btnBaslat = document.getElementById("gunBaslatBtn");
-    if (btnBitir) btnBitir.style.display = "none";
-    if (btnBaslat) btnBaslat.style.display = "inline-block";
-    
-    alert("Gün başarıyla kapatıldı!\n\nToplam Hasılat: " + ozet.toplam_hasilat + " ₺\nTamamlanan Sipariş: " + ozet.toplam_siparis);
-  });
-
-  socket.on("gun_basladi", function(data) {
-    const btnBitir = document.getElementById("gunSonuBtn");
-    const btnBaslat = document.getElementById("gunBaslatBtn");
-    if (btnBitir) btnBitir.style.display = "inline-block";
-    if (btnBaslat) btnBaslat.style.display = "none";
-    
-    document.getElementById("totalRevenue").innerText = "0";
-    document.getElementById("totalOrders").innerText = "0";
-    document.getElementById("ordersGrid").innerHTML = "";
-    
-    alert("Yeni gün başlatıldı, menü siparişlere yeniden açıldı!");
-  });
+@socketio.on('gun_durum_degistir')
+def gun_durum_degistir(action):
+    global siparisler, gunluk_durum
+    try:
+        if action == 'bitir':
+            gunluk_durum['gun_acik'] = False
+            ozet = {
+                'toplam_hasilat': gunluk_durum.get('toplam_hasilat', 0),
+                'toplam_siparis': gunluk_durum.get('tamamlanan_siparis_sayisi', 0),
+                'kapanis_zamani': datetime.now().strftime("%d.%m.%Y %H:%M")
+            }
+            emit('gun_kapandi', ozet, broadcast=True)
+        elif action == 'baslat':
+            gunluk_durum['gun_acik'] = True
+            gunluk_durum['toplam_hasilat'] = 0
+            gunluk_durum['tamamlanan_siparis_sayisi'] = 0
+            gunluk_durum['baslangic_zamani'] = datetime.now().strftime("%d.%m.%Y %H:%M")
+            siparisler.clear()
+            emit('gun_basladi', gunluk_durum, broadcast=True)
+    except Exception as e:
+        print(f"Gün durum hatası: {e}")
 
 
 if __name__ == '__main__':
