@@ -2,7 +2,7 @@ import csv
 import io
 import json
 from datetime import datetime
-from flask import Flask, render_template, request, session, redirect, url_for, make_response
+from flask import Flask, render_template, request, session, redirect, url_for, make_response, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO, emit
 
@@ -16,17 +16,11 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 KASA_PIN = "1234"
 
-# Varsayılan Menü Fiyatları ve Durum Ayarları
 VARSAYILAN_FIYATLAR = {
     "taban_fiyat": 150,
     "ekstra_meyve": 25,
     "ekstra_cikolata": 25,
     "ekstra_susleme": 15
-}
-
-VARSAYILAN_DURUM = {
-    "acik": True,
-    "mesaj": "Siparişler açık"
 }
 
 # --- VERİTABANI MODELLERİ ---
@@ -71,8 +65,18 @@ def ayar_getir(anahtar):
     if anahtar == 'fiyatlar':
         return VARSAYILAN_FIYATLAR
     if anahtar == 'gunluk_durum':
-        return VARSAYILAN_DURUM
+        return {"acik": True, "mesaj": "Siparişler açık"}
     return None
+
+def ayar_kaydet(anahtar, deger):
+    ayar = Ayar.query.filter_by(anahtar=anahtar).first()
+    deger_str = json.dumps(deger, ensure_ascii=False) if isinstance(deger, (dict, list, bool)) else str(deger)
+    if not ayar:
+        ayar = Ayar(anahtar=anahtar, deger=deger_str)
+        db.session.add(ayar)
+    else:
+        ayar.deger = deger_str
+    db.session.commit()
 
 with app.app_context():
     db.create_all()
@@ -80,7 +84,7 @@ with app.app_context():
 # --- 1. MÜŞTERİ MENÜ EKRANI ---
 @app.route('/')
 def menu():
-    masa = request.args.get('masa', '1')
+    masa = request.args.get('masa')
     fiyatlar = ayar_getir('fiyatlar')
     gunluk_durum = ayar_getir('gunluk_durum')
     return render_template('menu.html', masa=masa, fiyatlar=fiyatlar, gunluk_durum=gunluk_durum)
@@ -96,7 +100,6 @@ def kasa_giris():
             return redirect(url_for('kasa'))
         else:
             hata = "Hatalı PIN kodu! Lütfen tekrar deneyin."
-            
     return render_template('kasa_giris.html', hata=hata)
 
 @app.route('/kasa-cikis')
@@ -111,58 +114,69 @@ def kasa():
 
     fiyatlar = ayar_getir('fiyatlar')
     gunluk_durum = ayar_getir('gunluk_durum')
-    tum_siparisler = Siparis.query.order_by(Siparis.id.asc()).all()
-    siparis_listesi = [s.to_dict() for s in tum_siparisler]
     
+    tum_db_siparisler = Siparis.query.order_by(Siparis.id.desc()).all()
+    siparisler = [s.to_dict() for s in tum_db_siparisler]
+
+    # Günlük Hasılat ve İstatistikler
+    toplam_hasilat = sum(s.fiyat for s in tum_db_siparisler)
+    toplam_adet = len(tum_db_siparisler)
+    bekleyen_adet = len([s for s in tum_db_siparisler if s.durum != 'Tamamlandı'])
+
     return render_template('kasa.html',
-                           siparisler=siparis_listesi,
+                           siparisler=siparisler,
                            fiyatlar=fiyatlar,
-                           gunluk_durum=gunluk_durum)
+                           gunluk_durum=gunluk_durum,
+                           toplam_hasilat=toplam_hasilat,
+                           toplam_adet=toplam_adet,
+                           bekleyen_adet=bekleyen_adet)
+
+# Gün Sonu / Başlatma için Garanti HTTP Rotası (Socket takılsa bile çalışır)
+@app.route('/api/gun-durum', methods=['POST'])
+def api_gun_durum():
+    if not session.get('kasa_yetkili'):
+        return jsonify({"success": False, "error": "Yetkisiz"}), 403
+    
+    data = request.get_json() or {}
+    acik = data.get('acik', True)
+    yeni_durum = {
+        "acik": acik,
+        "mesaj": "Siparişler açık" if acik else "Bugünlük sipariş alımı durdurulmuştur."
+    }
+    ayar_kaydet('gunluk_durum', yeni_durum)
+    socketio.emit('gun_durumu_guncellendi', yeni_durum)
+    return jsonify({"success": True, "durum": yeni_durum})
 
 # --- 3. EXCEL / CSV İNDİRME ---
 @app.route('/admin/siparisler-indir')
 def siparisler_indir():
     tum_siparisler = Siparis.query.order_by(Siparis.id.asc()).all()
-    
     si = io.StringIO()
     cw = csv.writer(si)
     cw.writerow(['Siparis ID', 'Masa', 'Fiyat', 'Durum', 'Saat', 'Hamur', 'Cikolatalar', 'Meyveler', 'Suslemeler', 'Not'])
-    
     for s in tum_siparisler:
-        cw.writerow([
-            s.id,
-            s.masa,
-            s.fiyat,
-            s.durum,
-            s.tarih.strftime("%d.%m.%Y %H:%M"),
-            s.hamur,
-            s.cikolatalar,
-            s.meyveler,
-            s.suslemeler,
-            s.notlar
-        ])
+        cw.writerow([s.id, s.masa, s.fiyat, s.durum, s.tarih.strftime("%d.%m.%Y %H:%M"), s.hamur, s.cikolatalar, s.meyveler, s.suslemeler, s.notlar])
     
     cikti = make_response(si.getvalue().encode('utf-8-sig'))
     cikti.headers["Content-Disposition"] = "attachment; filename=waffle_siparisler.csv"
     cikti.headers["Content-type"] = "text/csv; charset=utf-8"
     return cikti
 
-# --- 4. SOCKET.IO SİPARİŞ İLETİŞİMİ ---
+# --- 4. SOCKET.IO İŞLEMLERİ ---
 @socketio.on('yeni_siparis')
 def siparis_geldi(data):
     yeni = Siparis(
-        masa=data.get('masa', '1'),
+        masa=str(data.get('masa', '1')),
         hamur=data.get('hamur', ''),
         cikolatalar=json.dumps(data.get('cikolatalar', []), ensure_ascii=False),
         meyveler=json.dumps(data.get('meyveler', []), ensure_ascii=False),
         suslemeler=json.dumps(data.get('suslemeler', []), ensure_ascii=False),
         notlar=data.get('notlar', ''),
-        fiyat=data.get('fiyat', 0.0),
+        fiyat=float(data.get('fiyat', 0.0)),
         durum="Hazırlanıyor"
     )
     db.session.add(yeni)
     db.session.commit()
-    
     emit('kasa_yeni_siparis', yeni.to_dict(), broadcast=True)
 
 @socketio.on('siparis_durum_guncelle')
