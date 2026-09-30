@@ -88,7 +88,7 @@ def ayar_kaydet(anahtar, veri):
         db.session.add(ayar)
     db.session.commit()
 
-# --@app.route('/kasa-giris', methods=['GET', 'POST'])
+@app.route('/kasa-giris', methods=['GET', 'POST'])
 def kasa_giris():
     hata = None
     if request.method == 'POST':
